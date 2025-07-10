@@ -13,7 +13,11 @@
     "https://www.finax.eu/*",
     "https://myfund.pl/*",
     "https://online.mbank.pl/*",
-    "https://mbank.pl/*"
+    "https://mbank.pl/*",
+    "https://sti24.tfi.bnpparibas.pl/*",
+    "https://millenniumtfi.sti24.pl/*",
+    "https://online24.investors.pl/*",
+    "https://online.santander-ppk.pl/*"
     ],
     "background": {
       "service_worker": "background.js"
