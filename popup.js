@@ -1001,12 +1001,13 @@ function extractAndSaveTable_santander() {
       const liczbaJUraw = getValue("Liczba jednostek transakcji");
       const wanjuRaw = getValue("WANJU dla transakcji");
 
-      const liczbaJU = liczbaJUraw
-      .replace(",", ".")
-      .match(/[\d.]+/)?.[0] || "";
-      const wanju = wanjuRaw
-      .replace(",", ".")
-      .match(/[\d.]+/)?.[0] || "";
+
+      
+      const cleanValue = (raw) =>
+        raw.replace(/\s/g, "").replace(",", ".").match(/[\d.]+/)?.[0] || "";
+
+      const liczbaJU = cleanValue(liczbaJUraw);
+      const wanju = cleanValue(wanjuRaw);
 
       rows.push([
         `"${dataWyceny}"`,
