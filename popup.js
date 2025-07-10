@@ -1,5 +1,3 @@
-// 🔄 Główna funkcja uruchamiana po załadowaniu popupu
-
 document.addEventListener("DOMContentLoaded", async () => {
     const infoContainer = document.getElementById("info");
     const exportBtn = document.getElementById("exportBtn");
@@ -138,23 +136,233 @@ document.addEventListener("DOMContentLoaded", async () => {
       setTimeout(tryClick, 300);
     }
   
-  
+// 📤 Wklejanie operacji Paribas do formularza MyFund
+
+
+    function insertTransactions_paribas(csvContent) {
+      const select = document.querySelector('select#bank');
+      if (select) {
+        select.value = 'BNPParibas';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      const file = new File([csvBlob], "paribas_export.csv", { type: "text/csv" });
+    
+      const input = document.querySelector('input[type="file"]#imagefile');
+      if (!input) {
+        alert("Nie znaleziono pola do przesłania pliku.");
+        return;
+      }
+    
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    
+      // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
+      const tryClick = () => {
+        const submitButton = document.querySelector('#submit1');
+        if (submitButton) {
+          submitButton.click();
+        } else {
+          // Spróbuj ponownie po 200ms, max 5 razy
+          if (tryClick.attempts < 5) {
+            tryClick.attempts++;
+            setTimeout(tryClick, 200);
+          } else {
+            alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+          }
+        }
+      };
+      tryClick.attempts = 0;
+      setTimeout(tryClick, 300); // pierwszy strzał
+    }
+    
+
+// 📤 Wklejanie operacji Milenium do formularza MyFund
+
+
+    function insertTransactions_milenium(csvContent) {
+      const select = document.querySelector('select#bank');
+      if (select) {
+        select.value = 'MillenniumPPK';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      const file = new File([csvBlob], "milenium_export.csv", { type: "text/csv" });
+    
+      const input = document.querySelector('input[type="file"]#imagefile');
+      if (!input) {
+        alert("Nie znaleziono pola do przesłania pliku.");
+        return;
+      }
+    
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    
+      // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
+      const tryClick = () => {
+        const submitButton = document.querySelector('#submit1');
+        if (submitButton) {
+          submitButton.click();
+        } else {
+          // Spróbuj ponownie po 200ms, max 5 razy
+          if (tryClick.attempts < 5) {
+            tryClick.attempts++;
+            setTimeout(tryClick, 200);
+          } else {
+            alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+          }
+        }
+      };
+      tryClick.attempts = 0;
+      setTimeout(tryClick, 300); // pierwszy strzał
+    }
+    
+    
+    
+// 📤 Wklejanie operacji Investors do formularza MyFund
+
+
+    function insertTransactions_investors(csvContent) {
+      const select = document.querySelector('select#bank');
+      if (select) {
+        select.value = 'INVESTORSPPK';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      const file = new File([csvBlob], "investors_export.csv", { type: "text/csv" });
+    
+      const input = document.querySelector('input[type="file"]#imagefile');
+      if (!input) {
+        alert("Nie znaleziono pola do przesłania pliku.");
+        return;
+      }
+    
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    
+      // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
+      const tryClick = () => {
+        const submitButton = document.querySelector('#submit1');
+        if (submitButton) {
+          submitButton.click();
+        } else {
+          // Spróbuj ponownie po 200ms, max 5 razy
+          if (tryClick.attempts < 5) {
+            tryClick.attempts++;
+            setTimeout(tryClick, 200);
+          } else {
+            alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+          }
+        }
+      };
+      tryClick.attempts = 0;
+      setTimeout(tryClick, 300); // pierwszy strzał
+    }
+    
+    
+// 📤 Wklejanie operacji santander do formularza MyFund
+
+
+    function insertTransactions_santander(csvContent) {
+      const select = document.querySelector('select#bank');
+      if (select) {
+        select.value = 'SantanderPPK2';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      const file = new File([csvBlob], "santander_export.csv", { type: "text/csv" });
+    
+      const input = document.querySelector('input[type="file"]#imagefile');
+      if (!input) {
+        alert("Nie znaleziono pola do przesłania pliku.");
+        return;
+      }
+    
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    
+      // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
+      const tryClick = () => {
+        const submitButton = document.querySelector('#submit1');
+        if (submitButton) {
+          submitButton.click();
+        } else {
+          // Spróbuj ponownie po 200ms, max 5 razy
+          if (tryClick.attempts < 5) {
+            tryClick.attempts++;
+            setTimeout(tryClick, 200);
+          } else {
+            alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+          }
+        }
+      };
+      tryClick.attempts = 0;
+      setTimeout(tryClick, 300); // pierwszy strzał
+    }
+    
+
+
 // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
 
     function updateActionButtons() {
-      chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv"], (data) => {
+      chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
+                                "milenium_export.csv", "investors_export.csv", "santander_export.csv"], (data) => {
         actionContainer.innerHTML = "";
         if (tabUrl.includes("myfund.pl")) {
           warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
           warningContainer.style.display = "block";
         }
-        if (data["mbank_export.csv"]) {
+        if (data["mbank_export.csv"] && !tabUrl.includes("raport=ImportOperacji")) {
           const btn = document.createElement("button");
           btn.className = "BUTTON";
           btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
           btn.style.display = "block"
           btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=mBankSFI", "_blank");
+          actionContainer.appendChild(btn);
+        }
+        if (data["paribas_export.csv"] && !tabUrl.includes("&sourcePlugin=PNPParibas")) {
+          const btn = document.createElement("button");
+          btn.className = "BUTTON";
+          btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
+          btn.style.display = "block"
+          btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=PNPParibas", "_blank");
+          actionContainer.appendChild(btn);
+        }
+        if (data["milenium_export.csv"] && !tabUrl.includes("&sourcePlugin=MillenniumPPK")) {
+          const btn = document.createElement("button");
+          btn.className = "BUTTON";
+          btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
+          btn.style.display = "block"
+          btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=MillenniumPPK", "_blank");
+          actionContainer.appendChild(btn);
+        }
+        if (data["investors_export.csv"] && !tabUrl.includes("&sourcePlugin=INVESTORSPPK")) {
+          const btn = document.createElement("button");
+          btn.className = "BUTTON";
+          btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
+          btn.style.display = "block"
+          btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=INVESTORSPPK", "_blank");
+          actionContainer.appendChild(btn);
+        }
+        if (data["santander_export.csv"] && !tabUrl.includes("&sourcePlugin=SantanderPPK2")) {
+          const btn = document.createElement("button");
+          btn.className = "BUTTON";
+          btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
+          btn.style.display = "block"
+          btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=SantanderPPK2", "_blank");
           actionContainer.appendChild(btn);
         }
         if (tabUrl.includes("raport=ImportOperacji")){
@@ -168,6 +376,64 @@ document.addEventListener("DOMContentLoaded", async () => {
                 target: { tabId: tab.id },
                 function: insertTransactions_mbank,
                 args: [data["mbank_export.csv"]]
+              });
+            };
+            actionContainer.appendChild(pasteBtn);
+          }
+        }
+        if (tabUrl.includes("raport=ImportOperacjiPPK")){
+          if (data["paribas_export.csv"]) {
+            const pasteBtn = document.createElement("button");
+            pasteBtn.className = "BUTTON";
+            pasteBtn.style.display = "block"
+            pasteBtn.textContent = "Wklej pobrane transakcje";
+            pasteBtn.onclick = () => {
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                function: insertTransactions_paribas,
+                args: [data["paribas_export.csv"]]
+              });
+            };
+            actionContainer.appendChild(pasteBtn);
+          }
+          if (data["milenium_export.csv"]) {
+            const pasteBtn = document.createElement("button");
+            pasteBtn.className = "BUTTON";
+            pasteBtn.style.display = "block"
+            pasteBtn.textContent = "Wklej pobrane transakcje";
+            pasteBtn.onclick = () => {
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                function: insertTransactions_milenium,
+                args: [data["milenium_export.csv"]]
+              });
+            };
+            actionContainer.appendChild(pasteBtn);
+          }
+          if (data["investors_export.csv"]) {
+            const pasteBtn = document.createElement("button");
+            pasteBtn.className = "BUTTON";
+            pasteBtn.style.display = "block"
+            pasteBtn.textContent = "Wklej pobrane transakcje";
+            pasteBtn.onclick = () => {
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                function: insertTransactions_investors,
+                args: [data["investors_export.csv"]]
+              });
+            };
+            actionContainer.appendChild(pasteBtn);
+          }
+          if (data["santander_export.csv"]) {
+            const pasteBtn = document.createElement("button");
+            pasteBtn.className = "BUTTON";
+            pasteBtn.style.display = "block"
+            pasteBtn.textContent = "Wklej pobrane transakcje";
+            pasteBtn.onclick = () => {
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                function: insertTransactions_santander,
+                args: [data["santander_export.csv"]]
               });
             };
             actionContainer.appendChild(pasteBtn);
@@ -312,7 +578,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       exportBtn.style.display = "none";
     }
     if ((tabUrl.includes("tfi.bnpparibas.pl") || tabUrl.includes("millenniumtfi.sti24") || tabUrl.includes("24.investors.pl") || 
-        tabUrl.includes('online.santander-ppk') ) && tabUrl.includes(":transaction:history") ){
+        tabUrl.includes('online.santander-ppk') ) && (tabUrl.includes(":transaction:history") || tabUrl.includes("/transaction/history")) ){
       document.getElementById("dateWarningBox").style.display = "block";
       exportBtn.style.display = "block";
         }
@@ -320,11 +586,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   
 // ⬇️ Przycisk pobierania zapisanego pliku z pamięci Chrome (tylko do testów)
-  
+/*
   
     const downloadStoredBtn = document.getElementById("downloadStoredBtn");
 
-    chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", "milenium_export.csv"], (data) => {
+    chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
+                            "milenium_export.csv", "investors_export.csv", "santander_export.csv"], (data) => {
       let found = null;
       let filename = null;
 
@@ -343,6 +610,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (data["milenium_export.csv"]) {
         found = data["milenium_export.csv"];
         filename = "milenium_export.csv";
+      } else if (data["investors_export.csv"]) {
+        found = data["investors_export.csv"];
+        filename = "investors_export.csv";
+      } else if (data["santander_export.csv"]) {
+        found = data["santander_export.csv"];
+        filename = "santander_export.csv";
       }
 
       if (found) {
@@ -359,6 +632,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
+*/
+
 
 // 🟢 Obsługa kliknięcia przycisku eksportu - wybór odpowiedniej funkcji w zależności od strony
 
@@ -371,13 +646,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     
       if (tabUrl.includes("finax")) {
         funcToRun = extractAndSaveTable;
-      } if (tabUrl.includes("mbank")) {
+      } else if (tabUrl.includes("mbank")) {
         funcToRun = extractAndSaveTable_mbank;
-      } if (tabUrl.includes("paribas")) {
+      } else if (tabUrl.includes("paribas")) {
         funcToRun = extractAndSaveTable_paribas;
-      } if (tabUrl.includes("millenniumtfi")) {
+      } else if (tabUrl.includes("millenniumtfi")) {
         funcToRun = extractAndSaveTable_milenium;
-      } if (tabUrl.includes("investors")) {
+      } else if (tabUrl.includes("investors")) {
         funcToRun = extractAndSaveTable_investors;
       } else if (tabUrl.includes("santander")) {
         funcToRun = extractAndSaveTable_santander;
@@ -476,7 +751,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const allRows = [headers, ...results.map(r => r.split(';'))];
     const csvContent = allRows.map(row => row.join(";")).join("\n");
   
-    chrome.storage.local.remove(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", "milenium_export.csv"], () => {
+    chrome.storage.local.remove(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
+                                "milenium_export.csv", "investors_export.csv", "santander_export.csv"], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
           chrome.runtime.sendMessage({ action: "dataSaved" });
@@ -565,7 +841,9 @@ function extractAndSaveTable_paribas() {
       "finax_operacje.csv",
       "mbank_export.csv",
       "paribas_export.csv",
-      "milenium_export.csv"
+      "milenium_export.csv",
+      "investors_export.csv",
+      "santander_export.csv"
     ], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
@@ -577,6 +855,190 @@ function extractAndSaveTable_paribas() {
 }
 
 
+// 📋 Wyciągnięcie danych z tabeli investors i zapisanie jako CSV
+
+
+function extractAndSaveTable_investors() {
+  const filename = "investors_export.csv";
+  const headers = [
+    "Data wyceny",
+    "Fundusz docelowy",
+    "Typ transakcji",
+    "Typ oświadczenia/dyspozycji",
+    "Liczba jednostek transakcji",
+    "WANJU dla transakcji"
+  ];
+  const rows = [headers];
+
+  const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
+
+  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
+  transactions.forEach(tr => {
+    const toggleBtn = tr.querySelector("a.nx-button");
+    if (toggleBtn) {
+      toggleBtn.click();
+    } else {
+      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+  });
+
+  // 2. Poczekaj, aż wszystkie szczegóły się pojawią
+  setTimeout(() => {
+    transactions.forEach(tr => {
+      const typOswiadczenia = tr.children[2]?.textContent.trim() || "";
+
+      const detailsTr = tr.nextElementSibling;
+      if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) return;
+
+      const getValue = (label) => {
+        const labels = detailsTr.querySelectorAll("span.label");
+        for (const span of labels) {
+          if (span.textContent.trim() === label) {
+            const h4 = span.closest(".nx-grid__row")?.querySelector("h4.ng-star-inserted");
+            return h4?.textContent.trim().replace(/\s+/g, " ") || "";
+          }
+        }
+        return "";
+      };
+
+      const dataWyceny = getValue("Data wyceny");
+      const fundusz = getValue("Fundusz docelowy");
+      const typTransakcji = getValue("Typ transakcji");
+
+      const liczbaJUraw = getValue("Liczba jednostek transakcji");
+      const wanjuRaw = getValue("WANJU dla transakcji");
+
+      const liczbaJU = liczbaJUraw
+      .replace(",", ".")
+      .match(/[\d.]+/)?.[0] || "";
+      const wanju = wanjuRaw
+      .replace(",", ".")
+      .match(/[\d.]+/)?.[0] || "";
+
+      rows.push([
+        `"${dataWyceny}"`,
+        `"${fundusz}"`,
+        `"${typTransakcji}"`,
+        `"${typOswiadczenia}"`,
+        liczbaJU,
+        wanju
+      ]);
+    });
+
+    if (rows.length <= 1) return alert("Brak danych do eksportu.");
+
+    const csvContent = rows.map(row => row.join(";")).join("\n");
+
+    chrome.storage.local.remove([
+      "finax_transakcje.csv",
+      "finax_operacje.csv",
+      "mbank_export.csv",
+      "paribas_export.csv",
+      "milenium_export.csv",
+      "investors_export.csv",
+      "santander_export.csv"
+    ], () => {
+      chrome.storage.local.set({ [filename]: csvContent }, () => {
+        if (!chrome.runtime.lastError) {
+          chrome.runtime.sendMessage({ action: "dataSaved" });
+        }
+      });
+    });
+  }, 1000); // 1 sekunda opóźnienia — można zwiększyć przy wolnym internecie
+}
+
+
+// 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV
+
+
+function extractAndSaveTable_santander() {
+  const filename = "santander_export.csv";
+  const headers = [
+    "Data wyceny",
+    "Fundusz docelowy",
+    "Typ transakcji",
+    "Typ oświadczenia/dyspozycji",
+    "Liczba jednostek transakcji",
+    "WANJU dla transakcji"
+  ];
+  const rows = [headers];
+
+  const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
+
+  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
+  transactions.forEach(tr => {
+    const toggleBtn = tr.querySelector("a.nx-button");
+    if (toggleBtn) {
+      toggleBtn.click();
+    } else {
+      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+  });
+
+  // 2. Poczekaj, aż wszystkie szczegóły się pojawią
+  setTimeout(() => {
+    transactions.forEach(tr => {
+      const typOswiadczenia = tr.children[2]?.textContent.trim() || "";
+
+      const detailsTr = tr.nextElementSibling;
+      if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) return;
+
+      const getValue = (label) => {
+        const labels = detailsTr.querySelectorAll("span.label");
+        for (const span of labels) {
+          if (span.textContent.trim() === label) {
+            const h4 = span.closest(".nx-grid__row")?.querySelector("h4.ng-star-inserted");
+            return h4?.textContent.trim().replace(/\s+/g, " ") || "";
+          }
+        }
+        return "";
+      };
+
+      const dataWyceny = getValue("Data wyceny");
+      const fundusz = getValue("Fundusz docelowy");
+      const typTransakcji = getValue("Typ transakcji");
+
+      const liczbaJUraw = getValue("Liczba jednostek transakcji");
+      const wanjuRaw = getValue("WANJU dla transakcji");
+
+      const liczbaJU = liczbaJUraw
+      .replace(",", ".")
+      .match(/[\d.]+/)?.[0] || "";
+      const wanju = wanjuRaw
+      .replace(",", ".")
+      .match(/[\d.]+/)?.[0] || "";
+
+      rows.push([
+        `"${dataWyceny}"`,
+        `"${fundusz}"`,
+        `"${typTransakcji}"`,
+        `"${typOswiadczenia}"`,
+        liczbaJU,
+        wanju
+      ]);
+    });
+
+    if (rows.length <= 1) return alert("Brak danych do eksportu.");
+
+    const csvContent = rows.map(row => row.join(";")).join("\n");
+
+    chrome.storage.local.remove([
+      "finax_transakcje.csv",
+      "finax_operacje.csv",
+      "mbank_export.csv",
+      "paribas_export.csv",
+      "milenium_export.csv",
+      "investors_export.csv",
+      "santander_export.csv"
+    ], () => {
+      chrome.storage.local.set({ [filename]: csvContent }, () => {
+        if (!chrome.runtime.lastError) {
+          chrome.runtime.sendMessage({ action: "dataSaved" });
+        }
+      });
+    });
+  }, 1000); // 1 sekunda opóźnienia — można zwiększyć przy wolnym internecie
+}
 
 
 // 📋 Wyciągnięcie danych z tabeli milenium i zapisanie jako CSV
@@ -654,7 +1116,9 @@ function extractAndSaveTable_milenium() {
       "finax_operacje.csv",
       "mbank_export.csv",
       "paribas_export.csv",
-      "milenium_export.csv"
+      "milenium_export.csv",
+      "investors_export.csv",
+      "santander_export.csv"
     ], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
@@ -743,7 +1207,8 @@ function extractAndSaveTable_milenium() {
       : rows.map(row => row.join(";")).join("\n");
   
     // 🧹 Usuwamy oba pliki – żeby był tylko jeden
-    chrome.storage.local.remove(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", "milenium_export.csv"], () => {
+    chrome.storage.local.remove(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
+                                "milenium_export.csv", "investors_export.csv", "santander_export.csv"], () => {
       // 📝 Zapisujemy tylko ten aktualny
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
