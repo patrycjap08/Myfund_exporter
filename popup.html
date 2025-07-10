@@ -162,7 +162,36 @@
     #exportBtn:hover {
       background-color: var(--Neutral800);
     }
-    
+    .tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-container .tooltip-text {
+  visibility: hidden;
+  background-color: var(--Neutral800);
+  color: #fff;
+  text-align: left;
+  padding: 8px;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 1;
+  bottom: 110%; /* nad ikoną */
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 260px;
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.2s;
+  box-shadow: 0px 0px 5px rgba(0,0,0,0.3);
+}
+
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
     
   </style>
 </head>
@@ -194,10 +223,19 @@
     <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
     <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
     <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
-    <img class="icon" src="info-icon.png" title="Po przejściu do myfund wybierz odpowiedni portfel, a następie otwórz wtyczkę i naciśnij przycisk 'Wklej pobrane transakcje' lub 'Wklej pobrane operacje' dla operacji z Finax lub ... dla operacji z Mbank">
+
+  <!-- WŁASNY TOOLTIP JAKO OSTATNIA IKONA -->
+    <div class="tooltip-container">
+      <img class="icon" src="info-icon.png" id="customInfoIcon">
+      <span class="tooltip-text">
+        Używając wtyczki pobierz dane z wybranej platformy.<br>
+        Wtyczka przekieruje cię na odpowiednią podstronę myfund.<br>
+        Po przejściu do myfund wybierz odpowiedni portfel, a następnie otwórz wtyczkę i naciśnij przycisk
+        „Wklej pobrane transakcje” lub „Wklej pobrane operacje”.
+      </span>
+    </div>
   </div>
-  
-  
+
   <script src="popup.js"></script>
 </body>
 </html>
