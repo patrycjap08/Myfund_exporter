@@ -538,7 +538,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const box = document.getElementById("instructionsBoxa");
       box.innerHTML = `Na ten moment wtyczka obsługuje eksport danych wyłącznie ze stron: 
         <a href="https://finax.eu" target="_blank"><b>Finax.eu</b></a>,
-        <a href="https://mbank.pl" target="_blank"><b>mbank.pl</b></a>, a także export danych PPK z Banków:
+        <a href="https://mbank.pl" target="_blank"><b>mbank.pl</b></a>, a także eksport danych PPK z Banków:
         <a href="https://sti24.tfi.bnpparibas.pl" target="_blank"><b>BNP Paribas</b></a>, 
         <a href="https://millenniumtfi.sti24.pl" target="_blank"><b>Millenium</b></a>,
         <a href="https://online24.investors.pl" target="_blank"><b>Investors</b></a> i 
