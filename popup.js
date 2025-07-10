@@ -503,9 +503,14 @@ function extractAndSaveTable_paribas() {
 
   const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
-  // 1. Kliknij każdy wiersz, by załadować szczegóły
+  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
   transactions.forEach(tr => {
-    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const toggleBtn = tr.querySelector("a.nx-button");
+    if (toggleBtn) {
+      toggleBtn.click();
+    } else {
+      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
   });
 
   // 2. Poczekaj, aż wszystkie szczegóły się pojawią
@@ -591,9 +596,14 @@ function extractAndSaveTable_milenium() {
 
   const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
-  // 1. Kliknij każdy wiersz, by załadować szczegóły
+  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
   transactions.forEach(tr => {
-    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const toggleBtn = tr.querySelector("a.nx-button");
+    if (toggleBtn) {
+      toggleBtn.click();
+    } else {
+      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
   });
 
   // 2. Poczekaj, aż wszystkie szczegóły się pojawią
