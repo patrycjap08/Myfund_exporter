@@ -779,15 +779,18 @@ function extractAndSaveTable_paribas() {
 
   const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
-  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
-  transactions.forEach(tr => {
-    const toggleBtn = tr.querySelector("a.nx-button");
-    if (toggleBtn) {
-      toggleBtn.click();
-    } else {
-      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    }
-  });
+// 1. Klikamy tylko, jeśli szczegóły nie są jeszcze widoczne
+transactions.forEach(tr => {
+  const toggleBtn = tr.querySelector("a.nx-button");
+  const nextRow = tr.nextElementSibling;
+  const detailsAreVisible = nextRow?.classList.contains("nx-table-row__details");
+
+  if (toggleBtn && !detailsAreVisible) {
+    toggleBtn.click();
+  } else if (!toggleBtn && !detailsAreVisible) {
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+});
 
   // 2. Poczekaj, aż wszystkie szczegóły się pojawią
   setTimeout(() => {
@@ -872,15 +875,18 @@ function extractAndSaveTable_investors() {
 
   const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
-  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
-  transactions.forEach(tr => {
-    const toggleBtn = tr.querySelector("a.nx-button");
-    if (toggleBtn) {
-      toggleBtn.click();
-    } else {
-      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    }
-  });
+// 1. Klikamy tylko, jeśli szczegóły nie są jeszcze widoczne
+transactions.forEach(tr => {
+  const toggleBtn = tr.querySelector("a.nx-button");
+  const nextRow = tr.nextElementSibling;
+  const detailsAreVisible = nextRow?.classList.contains("nx-table-row__details");
+
+  if (toggleBtn && !detailsAreVisible) {
+    toggleBtn.click();
+  } else if (!toggleBtn && !detailsAreVisible) {
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+});
 
   // 2. Poczekaj, aż wszystkie szczegóły się pojawią
   setTimeout(() => {
@@ -965,15 +971,18 @@ function extractAndSaveTable_santander() {
 
   const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
-  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
-  transactions.forEach(tr => {
-    const toggleBtn = tr.querySelector("a.nx-button");
-    if (toggleBtn) {
-      toggleBtn.click();
-    } else {
-      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    }
-  });
+// 1. Klikamy tylko, jeśli szczegóły nie są jeszcze widoczne
+transactions.forEach(tr => {
+  const toggleBtn = tr.querySelector("a.nx-button");
+  const nextRow = tr.nextElementSibling;
+  const detailsAreVisible = nextRow?.classList.contains("nx-table-row__details");
+
+  if (toggleBtn && !detailsAreVisible) {
+    toggleBtn.click();
+  } else if (!toggleBtn && !detailsAreVisible) {
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+});
 
   // 2. Poczekaj, aż wszystkie szczegóły się pojawią
   setTimeout(() => {
@@ -1059,15 +1068,18 @@ function extractAndSaveTable_milenium() {
 
   const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
-  // 1. Najpierw próbujemy kliknąć przycisk, a jeśli go nie ma, klikamy cały wiersz
-  transactions.forEach(tr => {
-    const toggleBtn = tr.querySelector("a.nx-button");
-    if (toggleBtn) {
-      toggleBtn.click();
-    } else {
-      tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    }
-  });
+// 1. Klikamy tylko, jeśli szczegóły nie są jeszcze widoczne
+transactions.forEach(tr => {
+  const toggleBtn = tr.querySelector("a.nx-button");
+  const nextRow = tr.nextElementSibling;
+  const detailsAreVisible = nextRow?.classList.contains("nx-table-row__details");
+
+  if (toggleBtn && !detailsAreVisible) {
+    toggleBtn.click();
+  } else if (!toggleBtn && !detailsAreVisible) {
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+});
 
   // 2. Poczekaj, aż wszystkie szczegóły się pojawią
   setTimeout(() => {
