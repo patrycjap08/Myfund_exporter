@@ -122,6 +122,22 @@
       display: none;
       text-align: left;
     }
+    #NobleWarningBox {
+      background-color: var(--Neutral400);
+      background-image: url("info.png");
+      background-position: 4px 4px;
+      background-repeat: no-repeat;
+      border-radius: 6px;
+      color: var(--Neutral900);
+      font-weight: 400;
+      font-size: 12px;
+      padding: 8px 8px 8px 30px;
+      text-align: center;
+      width: 100%;
+      box-sizing: border-box;
+      display: none;
+      text-align: left;
+    }
     #warning {
       background-color: var(--Neutral400);
       background-image: url("info.png");
@@ -209,6 +225,35 @@
   width: 100%;
   height: 20px; /* obszar łapania myszy */
 }
+.mini-icon {
+  width: 30px;
+  height: 30px;
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  cursor: pointer;
+  z-index: 999;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.mini-icon:hover {
+  opacity: 1;
+}
+.delete-tooltip .tooltip-text {
+  left: auto;
+  right: 0;
+  transform: translateX(50%) translateY(0);
+  text-align: left;
+  max-width: 220px;
+  padding: 8px 10px;
+  white-space: normal;
+}
+.tooltip-text::after {
+  left: auto;
+  right: 0;
+}
+
 
     
   </style>
@@ -225,10 +270,11 @@
     <div id="grayBoxa">Aby wyeksportować dane z platformy Finax, wejdź w szczegóły transakcji swojego rachunku.             <b> Przegląd rachunków -> Szczegóły konta -> Przegląd transakcji </b></div>
     <div id="grayBoxb">Aby wyeksportować dane z platformy Mbank, upewnij się, że jestś na właświwym profilu, a następnie przejdź do histori inwestycji: <b>Produkty -> Inwestycje -> Wszystkie -> Twój portfel inwestycyjny -> Historia</b></div>
     <div id="instructionsBoxb">Jeśli chcesz pobrać dane kupna i sprzedaży akcji, przejdź do zakładki <b>Kupno/Sprzedaż</b>.<br>Jeżeli chcesz pobrać dane operacji na koncie, przejdź do zakładki <b>Operacje</b>.</div>
-    <div id="PPKWarningBox"><b>Zaloguj się i przejdź do widoku transakcji które chcesz zaimportować.</b></div>
+    <div id="PPKWarningBox"><b>Zaloguj się i przejdź do widoku transakcji które chcesz zaimportować. Nie musisz rozwijać szczegułów tranzackji, wtyczka zrobi to za Ciebie.</b></div>
+    <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
     <div id="dateWarningBox"><b>Upewnij się, że wybrałeś odpowiedni zakres dat.</b></div>
     <button id="exportBtn">📥 Pobierz dane</button>
-    <!-- <button id="downloadStoredBtn" style="display: none;">⬇️ Pobierz zapisany plik</button> -->
+    <button id="downloadStoredBtn" style="display: none;">⬇️ Pobierz zapisany plik</button>
     <div id="warning"></div>
     <div id="actionContainer"></div>
   </div>
@@ -241,12 +287,13 @@
     <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
     <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
     <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
+    <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
 
   <!-- WŁASNY TOOLTIP JAKO OSTATNIA IKONA -->
     <div class="tooltip-container">
       <img class="icon" src="info-icon.png" id="customInfoIcon">
       <span class="tooltip-text">
-        Wejdź na stronę jednej z obsługiwanych platform (np. Finax, mBank, BNP Paribas, Investors, Santander, Millenium) i otwórz wtyczkę.<br>
+        Wejdź na stronę jednej z obsługiwanych platform (Finax, mBank, BNP Paribas, Investors, Santander, Millenium, Noble Securities) i otwórz wtyczkę.<br>
         Na podstronie z operacjami kliknij „Pobierz dane”, aby zapisać je tymczasowo w pamięci przeglądarki.
         Wtyczka przekieruje cię do odpowiedniej podstrony MyFund.<br>
         Wybierz portfel, otwórz ponownie wtyczkę i kliknij: 
@@ -257,6 +304,11 @@
       </span>
     </div>
   </div>
+<div id="clearDataContainer" class="tooltip-container delete-tooltip">
+  <img id="clearDataIcon" class="mini-icon" src="trash_dark.svg" title="">
+  <span class="tooltip-text">Usuń dane z pamięci przeglądarki</span>
+</div>
+
 
   <script src="popup.js"></script>
 </body>

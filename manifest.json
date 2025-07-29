@@ -10,18 +10,35 @@
       "scripting"
     ],
     "host_permissions": [
-    "https://www.finax.eu/*",
+    "https://finax.eu/*",
     "https://myfund.pl/*",
     "https://online.mbank.pl/*",
     "https://mbank.pl/*",
     "https://sti24.tfi.bnpparibas.pl/*",
     "https://millenniumtfi.sti24.pl/*",
     "https://online24.investors.pl/*",
-    "https://online.santander-ppk.pl/*"
+    "https://online.santander-ppk.pl/*",
+    "https://mynsapp.noblesecurities.pl/*"
     ],
     "background": {
       "service_worker": "background.js"
     },
+    "content_scripts": [
+  {
+    "matches": [
+      "https://www.finax.eu/*",
+      "https://myfund.pl/*",
+      "https://online.mbank.pl/*",
+      "https://mbank.pl/*",
+      "https://sti24.tfi.bnpparibas.pl/*",
+      "https://millenniumtfi.sti24.pl/*",
+      "https://online24.investors.pl/*",
+      "https://online.santander-ppk.pl/*",
+      "https://mynsapp.noblesecurities.pl/*"
+    ],
+    "js": ["content.js"]
+  }
+],
     "action": {
       "default_popup": "popup.html",
       "default_icon": {

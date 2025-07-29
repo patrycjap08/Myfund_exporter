@@ -312,20 +312,62 @@ document.addEventListener("DOMContentLoaded", async () => {
       setTimeout(tryClick, 300); // pierwszy strzał
     }
     
+// 📤 Wklejanie operacji Noble do formularza MyFund
 
+
+    function insertTransactions_noble(csvContent) {
+      const select = document.querySelector('select#bank');
+      if (select) {
+        select.value = 'Noble';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      const file = new File([csvBlob], "noble_export.csv", { type: "text/csv" });
+    
+      const input = document.querySelector('input[type="file"]#imagefile');
+      if (!input) {
+        alert("Nie znaleziono pola do przesłania pliku.");
+        return;
+      }
+    
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    
+      // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
+      const tryClick = () => {
+        const submitButton = document.querySelector('#submit1');
+        if (submitButton) {
+          submitButton.click();
+        } else {
+          // Spróbuj ponownie po 200ms, max 5 razy
+          if (tryClick.attempts < 5) {
+            tryClick.attempts++;
+            setTimeout(tryClick, 200);
+          } else {
+            alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+          }
+        }
+      };
+      tryClick.attempts = 0;
+      setTimeout(tryClick, 300); // pierwszy strzał
+    }
+    
 
 // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
 
     function updateActionButtons() {
       chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
-                                "milenium_export.csv", "investors_export.csv", "santander_export.csv"], (data) => {
+                                "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv"], (data) => {
         actionContainer.innerHTML = "";
         if (tabUrl.includes("myfund.pl")) {
           warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
           warningContainer.style.display = "block";
         }
-        if (data["mbank_export.csv"] && !tabUrl.includes("raport=ImportOperacji")) {
+        if (data["mbank_export.csv"] && !tabUrl.includes("sourcePlugin=mBankSFI")) {
           const btn = document.createElement("button");
           btn.className = "BUTTON";
           btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
@@ -365,7 +407,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=SantanderPPK2", "_blank");
           actionContainer.appendChild(btn);
         }
-        if (tabUrl.includes("raport=ImportOperacji")){
+        if (data["noble_export.csv"] && !tabUrl.includes("&sourcePlugin=Noble")) {
+          const btn = document.createElement("button");
+          btn.className = "BUTTON";
+          btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
+          btn.style.display = "block"
+          btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=Noble", "_blank");
+          actionContainer.appendChild(btn);
+        }
+        if (tabUrl.includes("sourcePlugin=mBankSFI")){
           if (data["mbank_export.csv"]) {
             const pasteBtn = document.createElement("button");
             pasteBtn.className = "BUTTON";
@@ -376,6 +426,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                 target: { tabId: tab.id },
                 function: insertTransactions_mbank,
                 args: [data["mbank_export.csv"]]
+              });
+            };
+            actionContainer.appendChild(pasteBtn);
+          }
+        }
+        if (tabUrl.includes("sourcePlugin=Noble")){
+          if (data["noble_export.csv"]) {
+            const pasteBtn = document.createElement("button");
+            pasteBtn.className = "BUTTON";
+            pasteBtn.style.display = "block"
+            pasteBtn.textContent = "Wklej pobrane transakcje";
+            pasteBtn.onclick = () => {
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                function: insertTransactions_noble,
+                args: [data["noble_export.csv"]]
               });
             };
             actionContainer.appendChild(pasteBtn);
@@ -532,13 +598,53 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.body.appendChild(message);
       setTimeout(() => message.remove(), 3000);
     }
+    
+    function showClearMessageOnPage(hasData) {
+  const message = document.createElement("div");
+
+  if (hasData) {
+    message.textContent = "🗑️ Dane zostały usunięte!";
+    Object.assign(message.style, {
+      backgroundColor: "#fff3cd",
+      color: "#856404",
+      border: "2px solid #ffeeba"
+    });
+  } else {
+    message.textContent = "ℹ️ Brak danych do usunięcia.";
+    Object.assign(message.style, {
+      backgroundColor: "#e2e3e5",
+      color: "#383d41",
+      border: "2px solid #d6d8db"
+    });
+  }
+
+  Object.assign(message.style, {
+    position: "fixed",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: "9999",
+    padding: "16px 24px",
+    borderRadius: "10px",
+    fontWeight: "bold",
+    fontSize: "16px",
+    textAlign: "center",
+    maxWidth: "90%"
+  });
+
+  document.body.appendChild(message);
+  setTimeout(() => message.remove(), 3000);
+}
+
   
     if (!tabUrl.includes("finax.eu") && !tabUrl.includes("myfund.pl") && !tabUrl.includes("mbank.pl") && !tabUrl.includes("tfi.bnpparibas.pl") 
-    && !tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("24.investors.pl") && !tabUrl.includes('online.santander-ppk')) {
+    && !tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("24.investors.pl") && !tabUrl.includes('online.santander-ppk') && !tabUrl.includes('mynsapp.noblesecurities')) {
       const box = document.getElementById("instructionsBoxa");
       box.innerHTML = `Na ten moment wtyczka obsługuje eksport danych wyłącznie ze stron: 
         <a href="https://finax.eu" target="_blank"><b>Finax.eu</b></a>,
-        <a href="https://mbank.pl" target="_blank"><b>mbank.pl</b></a>, a także danych PPK z banków:
+        <a href="https://mbank.pl" target="_blank"><b>Mbank.pl</b></a>,
+        <a href="https://mynsapp.noblesecurities.pl/" target="_blank"><b>Noblesecurities.pl</b></a>,
+        a także danych PPK z banków:
         <a href="https://sti24.tfi.bnpparibas.pl" target="_blank"><b>BNP Paribas</b></a>, 
         <a href="https://millenniumtfi.sti24.pl" target="_blank"><b>Millenium</b></a>,
         <a href="https://online24.investors.pl" target="_blank"><b>Investors</b></a> i 
@@ -581,17 +687,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         tabUrl.includes('online.santander-ppk') ) && (tabUrl.includes(":transaction:history") || tabUrl.includes("/transaction/history")) ){
       document.getElementById("dateWarningBox").style.display = "block";
       exportBtn.style.display = "block";
-        }
+    }
+    if  (tabUrl.includes("mynsapp.noblesecurities.pl") && !(tabUrl.includes("/history/investment") || tabUrl.includes(":history:investment"))){
+      document.getElementById("NobleWarningBox").style.display = "block";
+      document.getElementById("dateWarningBox").style.display = "block";
+      exportBtn.style.display = "none";
+    }
+    if (tabUrl.includes("mynsapp.noblesecurities.pl") && (tabUrl.includes("/history/investment") || tabUrl.includes(":history:investment"))) {
+      document.getElementById("dateWarningBox").style.display = "block";
+      exportBtn.style.display = "block";
+    }
     updateActionButtons();
   
   
 // ⬇️ Przycisk pobierania zapisanego pliku z pamięci Chrome (tylko do testów)
-/*
+
   
     const downloadStoredBtn = document.getElementById("downloadStoredBtn");
 
     chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
-                            "milenium_export.csv", "investors_export.csv", "santander_export.csv"], (data) => {
+                            "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv"], (data) => {
       let found = null;
       let filename = null;
 
@@ -616,6 +731,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (data["santander_export.csv"]) {
         found = data["santander_export.csv"];
         filename = "santander_export.csv";
+      } else if (data["noble_export.csv"]) {
+        found = data["noble_export.csv"];
+        filename = "noble_export.csv";
       }
 
       if (found) {
@@ -632,7 +750,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-*/
+
 
 
 // 🟢 Obsługa kliknięcia przycisku eksportu - wybór odpowiedniej funkcji w zależności od strony
@@ -656,6 +774,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         funcToRun = extractAndSaveTable_investors;
       } else if (tabUrl.includes("santander")) {
         funcToRun = extractAndSaveTable_santander;
+      } else if (tabUrl.includes("noblesecurities")) {
+        funcToRun = extractAndSaveTable_noble;
       }
     
       if (funcToRun) {
@@ -684,6 +804,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     
 
   });
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "checkStorage") {
+    checkStoredData();
+  }
+});
+
   
 // 📋 Wyciągnięcie danych z tabeli mBank i zapisanie jako CSV
 
@@ -752,10 +878,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const csvContent = allRows.map(row => row.join(";")).join("\n");
   
     chrome.storage.local.remove(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
-                                "milenium_export.csv", "investors_export.csv", "santander_export.csv"], () => {
+                                "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv"], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
           chrome.runtime.sendMessage({ action: "dataSaved" });
+    chrome.runtime.sendMessage({ action: "checkStorage" });
         }
       });
     });
@@ -846,11 +973,13 @@ transactions.forEach(tr => {
       "paribas_export.csv",
       "milenium_export.csv",
       "investors_export.csv",
-      "santander_export.csv"
+      "santander_export.csv",
+      "noble_export.csv"
     ], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
           chrome.runtime.sendMessage({ action: "dataSaved" });
+    chrome.runtime.sendMessage({ action: "checkStorage" });
         }
       });
     });
@@ -942,11 +1071,13 @@ transactions.forEach(tr => {
       "paribas_export.csv",
       "milenium_export.csv",
       "investors_export.csv",
-      "santander_export.csv"
+      "santander_export.csv",
+      "noble_export.csv"
     ], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
           chrome.runtime.sendMessage({ action: "dataSaved" });
+    chrome.runtime.sendMessage({ action: "checkStorage" });
         }
       });
     });
@@ -1039,11 +1170,13 @@ transactions.forEach(tr => {
       "paribas_export.csv",
       "milenium_export.csv",
       "investors_export.csv",
-      "santander_export.csv"
+      "santander_export.csv",
+      "noble_export.csv"
     ], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
           chrome.runtime.sendMessage({ action: "dataSaved" });
+    chrome.runtime.sendMessage({ action: "checkStorage" });
         }
       });
     });
@@ -1131,11 +1264,13 @@ transactions.forEach(tr => {
       "paribas_export.csv",
       "milenium_export.csv",
       "investors_export.csv",
-      "santander_export.csv"
+      "santander_export.csv",
+      "noble_export.csv"
     ], () => {
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
           chrome.runtime.sendMessage({ action: "dataSaved" });
+    chrome.runtime.sendMessage({ action: "checkStorage" });
         }
       });
     });
@@ -1221,16 +1356,110 @@ transactions.forEach(tr => {
   
     // 🧹 Usuwamy oba pliki – żeby był tylko jeden
     chrome.storage.local.remove(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
-                                "milenium_export.csv", "investors_export.csv", "santander_export.csv"], () => {
+                                "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv"], () => {
       // 📝 Zapisujemy tylko ten aktualny
       chrome.storage.local.set({ [filename]: csvContent }, () => {
         if (!chrome.runtime.lastError) {
           chrome.runtime.sendMessage({ action: "dataSaved" });
+    chrome.runtime.sendMessage({ action: "checkStorage" });
         }
       });
     });
   }
   
+
+// 📋 Wyciągnięcie danych z tabel Noble i zapisanie jako CSV
+
+function extractAndSaveTable_noble() {
+  const filename = "noble_export.csv";
+  const headers = [
+    "Data",
+    "Papier",
+    "Rodzaj operacji",
+    "Liczba",
+    "Kurs/Cena",
+    "Prowizja DM"
+  ];
+  const rows = [headers];
+
+  // Funkcja do parsowania liczb
+  const parseNumber = (text) => {
+    if (!text) return "";
+    const cleaned = text.trim()
+      .replace(/\u00a0/g, "")
+      .replace(",", ".")
+      .replace(/[^\d.-]/g, "");
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? "" : num;
+  };
+
+  // 1. Klikamy wszystkie przyciski rozwijania (pomijamy "Zamknij")
+  const buttons = Array.from(document.querySelectorAll("td.col-show-instrument-history button"));
+  buttons.forEach(btn => {
+    if (btn.textContent.trim() !== "Zamknij") btn.click();
+  });
+
+  // 2. Czekamy aż dane się pojawią
+  setTimeout(() => {
+    const mainRows = Array.from(document.querySelectorAll("tbody.ui-table-tbody > tr"));
+
+    for (let i = 0; i < mainRows.length; i++) {
+      const mainRow = mainRows[i];
+      const nextRow = mainRow.nextElementSibling;
+
+      const papier = mainRow.querySelector(".col-instrument label")?.textContent.trim() || "";
+
+      // Szukamy tabeli ze szczegółami operacji (następny wiersz z <td colspan>)
+      const tbody = nextRow?.querySelector("table .ui-table-tbody");
+      if (!tbody) continue;
+
+      const detailsRows = Array.from(tbody.querySelectorAll("tr"));
+      for (const row of detailsRows) {
+        const data = row.querySelector(".col-operation-date")?.textContent.trim() || "";
+        const rodzaj = row.querySelector(".col-operation-type")?.textContent.trim() || "";
+        const liczba = parseNumber(row.querySelector(".col-amount")?.textContent);
+        const cena = parseNumber(row.querySelector(".col-price")?.textContent);
+        const prowizja = parseNumber(row.querySelector(".col-commission")?.textContent);
+
+        rows.push([
+          data,
+          papier,
+          rodzaj,
+          liczba,
+          cena,
+          prowizja
+        ]);
+      }
+    }
+
+    if (rows.length === 1) return alert("Brak danych do eksportu.");
+
+const csvContent = rows.map((row, rowIndex) =>
+  row.map((cell, colIndex) => {
+    // Dla nagłówka: zawsze w cudzysłowach
+    if (rowIndex === 0) return `"${cell}"`;
+    // Dla kolumn tekstowych (0: Data, 1: Papier, 2: Rodzaj operacji)
+    if (colIndex <= 2) return `"${cell}"`;
+    // Dla liczb – bez cudzysłowu
+    return cell;
+  }).join(";")
+).join("\n");
+
+    chrome.storage.local.remove([
+      "finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv",
+      "paribas_export.csv", "milenium_export.csv", "investors_export.csv",
+      "santander_export.csv", "noble_export.csv"
+    ], () => {
+      chrome.storage.local.set({ [filename]: csvContent }, () => {
+        if (!chrome.runtime.lastError) {
+          chrome.runtime.sendMessage({ action: "dataSaved" });
+    chrome.runtime.sendMessage({ action: "checkStorage" });
+        }
+      });
+    });
+
+  }, 1000); // możesz zmienić timeout jeśli potrzeba
+}
 
 // 🎯 Pokaż ikonę Finax/mBank w zależności od aktywnej zakładki
 
@@ -1242,6 +1471,7 @@ transactions.forEach(tr => {
     const mileniumIcon = document.getElementById("mileniumIcon");
     const investorsIcon = document.getElementById("investorsIcon");
     const santanderIcon = document.getElementById("santanderIcon");
+    const nobleIcon = document.getElementById("nobleIcon");
   
     // Domyślnie ukryj obie
     finaxIcon.style.display = "none";
@@ -1250,6 +1480,7 @@ transactions.forEach(tr => {
     mileniumIcon.style.display = "none";
     investorsIcon.style.display = "none";
     santanderIcon.style.display = "none";
+    nobleIcon.style.display = "none";
   
     // Sprawdź aktywną zakładkę
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -1265,8 +1496,10 @@ transactions.forEach(tr => {
         mileniumIcon.style.display = "inline-block"
       } if (url.includes("investors")) {
         investorsIcon.style.display = "inline-block"
-      } else if (url.includes("santander")) {
+      } if (url.includes("santander")) {
         santanderIcon.style.display = "inline-block"
+      } else if (url.includes("noble")) {
+        nobleIcon.style.display = "inline-block"
       }
     });
   }
@@ -1298,5 +1531,76 @@ transactions.forEach(tr => {
   document.getElementById("santanderIcon").addEventListener("click", () => {
     chrome.tabs.create({ url: "https://online.santander-ppk.pl/" });
   });
+  document.getElementById("nobleIcon").addEventListener("click", () => {
+    chrome.tabs.create({ url: "https://mynsapp.noblesecurities.pl/" });
+  });
   
-  
+
+
+const clearDataIcon = document.getElementById("clearDataIcon");
+clearDataIcon.addEventListener("click", () => {
+  if (clearDataIcon.dataset.hasData === "true") {
+    chrome.storage.local.remove(allKeys, () => {
+      if (!chrome.runtime.lastError) {
+        checkStoredData();               // 🔄 Aktualizacja ikony kosza
+        actionContainer.innerHTML = "";  // 🧹 Ukryj przyciski natychmiast
+        updateActionButtons();           // 🔁 Odśwież listę przycisków
+        sendMessageToPage("🗑️ Dane zostały usunięte!");
+      }
+    });
+  }
+});
+
+const allKeys = [
+  "finax_transakcje.csv", "finax_operacje.csv",
+  "mbank_export.csv", "paribas_export.csv",
+  "milenium_export.csv", "investors_export.csv",
+  "santander_export.csv", "noble_export.csv"
+];
+
+function checkStoredData() {
+  chrome.storage.local.get(allKeys, (items) => {
+    const hasData = Object.values(items).some(val => !!val);
+    clearDataIcon.src = hasData ? "trash_dark.svg" : "trash_light.svg";
+    clearDataIcon.dataset.hasData = hasData;
+
+    // Ukryj lub pokaż przycisk "Wklej dane"
+    const pasteBtn = document.getElementById("downloadStoredBtn");
+    if (pasteBtn) {
+      pasteBtn.style.display = hasData ? "block" : "none";
+    }
+  });
+}
+
+checkStoredData();
+
+clearDataIcon.addEventListener("click", () => {
+  const hasData = clearDataIcon.dataset.hasData === "true";
+  if (hasData) {
+    chrome.storage.local.remove(allKeys, () => {
+      if (!chrome.runtime.lastError) {
+        checkStoredData();
+        actionContainer.innerHTML = "";
+        updateActionButtons();
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "showPageMessage",
+            hasData: true
+          });
+        });
+      }
+    });
+  } else {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "showPageMessage",
+        hasData: false
+      });
+    });
+  }
+});
+
+
+
+
+
