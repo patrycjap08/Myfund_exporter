@@ -783,7 +783,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     updateActionButtons();
 
-
+/*
     // ⬇️ Przycisk pobierania zapisanego pliku z pamięci Chrome (tylko do testów)
     
       
@@ -834,7 +834,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         });
 
-
+*/
 
     // 🟢 Obsługa kliknięcia przycisku eksportu - wybór odpowiedniej funkcji w zależności od strony
 
