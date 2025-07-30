@@ -1,317 +1,346 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <meta charset="UTF-8">
-  <title>Finax Exporter</title>
-  <style>
-    :root {
-      --Neutral0: #ffffff;
-      --Neutral200: #F7F7FB;
-      --Neutral400: #F1F1F5;
-      --Neutral600: #E2E7EB;
-      --Neutral700: #9BA6B5;
-      --Neutral800: #63717C;
-      --Neutral900: #020E1F;
-    }
+    <meta charset="UTF-8">
+    <title>Finax Exporter</title>
+    <style>
+        :root {
+            --Neutral0: #ffffff;
+            --Neutral200: #F7F7FB;
+            --Neutral400: #F1F1F5;
+            --Neutral600: #E2E7EB;
+            --Neutral700: #9BA6B5;
+            --Neutral800: #63717C;
+            --Neutral900: #020E1F;
+        }
 
-    body {
-      width: 360px;
-      height: 490px;
-      font-family: sans-serif;
-      margin: 0;
-      padding: 10px;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      align-items: center;
-    }
-    .top-section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .content-section {
-      flex: 1;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      overflow-y: auto;
-      margin-top: 10px;
-    }
-    #bottomIcons {
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      gap: 30px; /* <-- tutaj ustawiasz odstęp między ikonami */
-      margin-top: auto;
-    }
-    .icon {
-      width: 55px;
-      height: 55px;
-      cursor: pointer;
-    }
-    #logo {
-      width: 40px;
-      height: 40px;
-    }
-    #name {
-      width: 360px;
-      height: 70px;
-    }
-    #graphic {
-      width: 279px;
-      height: 117px;
-    }
-    button {
-      margin: 8px 0;
-      padding: 6px 12px;
-    }
-    #grayBoxa, #instructionsBoxa, #instructionsBoxb, #grayBoxb {
-      margin-bottom: 4px;
-      background-color: var(--Neutral400);
-      background-image: url("info.png");
-      background-position: 4px 4px;
-      background-repeat: no-repeat;
-      border-radius: 6px;
-      color: var(--Neutral900);
-      font-weight: 400;
-      font-size: 12px;
-      padding: 8px 8px 8px 30px;
-      text-align: center;
-      width: 100%;
-      box-sizing: border-box;
-      display: none;
-      text-align: left;
-    }
-    #instructionsBoxa a,
-    #instructionsBoxb a {
-      color: black;
-      text-decoration: underline; /* lub none, jeśli nie chcesz podkreślenia */
-    }
-    #dateWarningBox {
-      background-color: var(--Neutral400);
-      background-image: url("info.png");
-      background-position: 4px 4px;
-      background-repeat: no-repeat;
-      border-radius: 6px;
-      color: var(--Neutral900);
-      font-weight: 400;
-      font-size: 12px;
-      padding: 8px 8px 8px 30px;
-      text-align: center;
-      width: 100%;
-      box-sizing: border-box;
-      display: none;
-      text-align: left;
-    }
-    #PPKWarningBox {
-      background-color: var(--Neutral400);
-      background-image: url("info.png");
-      background-position: 4px 4px;
-      background-repeat: no-repeat;
-      border-radius: 6px;
-      color: var(--Neutral900);
-      font-weight: 400;
-      font-size: 12px;
-      padding: 8px 8px 8px 30px;
-      text-align: center;
-      width: 100%;
-      box-sizing: border-box;
-      display: none;
-      text-align: left;
-    }
-    #NobleWarningBox {
-      background-color: var(--Neutral400);
-      background-image: url("info.png");
-      background-position: 4px 4px;
-      background-repeat: no-repeat;
-      border-radius: 6px;
-      color: var(--Neutral900);
-      font-weight: 400;
-      font-size: 12px;
-      padding: 8px 8px 8px 30px;
-      text-align: center;
-      width: 100%;
-      box-sizing: border-box;
-      display: none;
-      text-align: left;
-    }
-    #warning {
-      background-color: var(--Neutral400);
-      background-image: url("info.png");
-      background-position: 4px 4px;
-      background-repeat: no-repeat;
-      border-radius: 6px;
-      color: var(--Neutral900);
-      font-weight: 400;
-      font-size: 12px;
-      padding: 8px 8px 8px 30px;
-      text-align: center;
-      width: 100%;
-      box-sizing: border-box;
-      display: none;
-      text-align: left;
-    }
-    
-    #actionContainer {
-      width: 100%;
-    }
-    .BUTTON,
-    #exportBtn {
-      background-color: var(--Neutral900);
-      color: var(--Neutral0);
-      padding: 8px 4px;
-      font-size: 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      width: 100%;
-      text-align: center;
-      transition: background-color 0.2s ease;
-      font-weight: 600;
-      line-height: 16px;
-      display: none;
-    }   
+        body {
+            width: 360px;
+            height: 490px;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+        }
 
-    .BUTTON:hover,
-    #exportBtn:hover {
-      background-color: var(--Neutral800);
-    }
-    
-.tooltip-container {
-  position: relative;
-  display: inline-block;
-}
+        .top-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-.tooltip-text {
-  visibility: hidden;
-  opacity: 0;
-  width: 300px;
-  background-color: #333;
-  color: #fff;
-  text-align: left;
-  padding: 10px;
-  border-radius: 5px;
-  position: absolute;
-  bottom: 125%; /* wyświetla dymek NAD ikoną */
-  left: 50%;
-  transform: translateX(-60%);
-  transition: opacity 0.3s;
-  z-index: 999;
-  pointer-events: auto;
-  white-space: normal;
-}
-.tooltip-text a {
-  color: #D09004;      
-  text-decoration: underline; /* opcjonalnie: zachowaj podkreślenie */
-}
+        .content-section {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
 
-.tooltip-text a:hover {
-  color: #ffd700;    /* np. złoty po najechaniu – możesz zmienić na inny */
-}
+        #bottomIcons {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            /* <-- tutaj ustawiasz odstęp między ikonami */
+            margin-top: auto;
+        }
 
-.tooltip-container:hover .tooltip-text,
-.tooltip-text:hover {
-  visibility: visible;
-  opacity: 1;
-}
-.tooltip-text::after {
-  content: "";
-  display: block;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  height: 20px; /* obszar łapania myszy */
-}
-.mini-icon {
-  width: 30px;
-  height: 30px;
-  position: fixed;
-  bottom: 10px;
-  right: 10px;
-  cursor: pointer;
-  z-index: 999;
-  opacity: 0.8;
-  transition: opacity 0.2s;
-}
+        .icon {
+            width: 55px;
+            height: 55px;
+            cursor: pointer;
+        }
 
-.mini-icon:hover {
-  opacity: 1;
-}
-.delete-tooltip .tooltip-text {
-  left: auto;
-  right: 0;
-  transform: translateX(50%) translateY(0);
-  text-align: left;
-  max-width: 220px;
-  padding: 8px 10px;
-  white-space: normal;
-}
-.tooltip-text::after {
-  left: auto;
-  right: 0;
-}
+        #logo {
+            width: 40px;
+            height: 40px;
+        }
 
+        #name {
+            width: 360px;
+            height: 70px;
+        }
 
-    
-  </style>
+        #graphic {
+            width: 279px;
+            height: 117px;
+        }
+
+        button {
+            margin: 8px 0;
+            padding: 6px 12px;
+        }
+
+        #grayBoxa,
+        #instructionsBoxa,
+        #instructionsBoxb,
+        #grayBoxb {
+            margin-bottom: 4px;
+            background-color: var(--Neutral400);
+            background-image: url("info.png");
+            background-position: 4px 4px;
+            background-repeat: no-repeat;
+            border-radius: 6px;
+            color: var(--Neutral900);
+            font-weight: 400;
+            font-size: 12px;
+            padding: 8px 8px 8px 30px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            display: none;
+            text-align: left;
+        }
+
+        #instructionsBoxa a,
+        #instructionsBoxb a {
+            color: black;
+            text-decoration: underline;
+            /* lub none, jeśli nie chcesz podkreślenia */
+        }
+
+        #dateWarningBox {
+            background-color: var(--Neutral400);
+            background-image: url("info.png");
+            background-position: 4px 4px;
+            background-repeat: no-repeat;
+            border-radius: 6px;
+            color: var(--Neutral900);
+            font-weight: 400;
+            font-size: 12px;
+            padding: 8px 8px 8px 30px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            display: none;
+            text-align: left;
+        }
+
+        #PPKWarningBox {
+            background-color: var(--Neutral400);
+            background-image: url("info.png");
+            background-position: 4px 4px;
+            background-repeat: no-repeat;
+            border-radius: 6px;
+            color: var(--Neutral900);
+            font-weight: 400;
+            font-size: 12px;
+            padding: 8px 8px 8px 30px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            display: none;
+            text-align: left;
+        }
+
+        #NobleWarningBox {
+            background-color: var(--Neutral400);
+            background-image: url("info.png");
+            background-position: 4px 4px;
+            background-repeat: no-repeat;
+            border-radius: 6px;
+            color: var(--Neutral900);
+            font-weight: 400;
+            font-size: 12px;
+            padding: 8px 8px 8px 30px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            display: none;
+            text-align: left;
+        }
+
+        #warning {
+            background-color: var(--Neutral400);
+            background-image: url("info.png");
+            background-position: 4px 4px;
+            background-repeat: no-repeat;
+            border-radius: 6px;
+            color: var(--Neutral900);
+            font-weight: 400;
+            font-size: 12px;
+            padding: 8px 8px 8px 30px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            display: none;
+            text-align: left;
+        }
+
+        #actionContainer {
+            width: 100%;
+        }
+
+        .BUTTON,
+        #exportBtn {
+            background-color: var(--Neutral900);
+            color: var(--Neutral0);
+            padding: 8px 4px;
+            font-size: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            transition: background-color 0.2s ease;
+            font-weight: 600;
+            line-height: 16px;
+            display: none;
+        }
+
+        .BUTTON:hover,
+        #exportBtn:hover {
+            background-color: var(--Neutral800);
+        }
+
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            width: 300px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            padding: 10px;
+            border-radius: 5px;
+            position: absolute;
+            bottom: 125%;
+            /* wyświetla dymek NAD ikoną */
+            left: 50%;
+            transform: translateX(-60%);
+            transition: opacity 0.3s;
+            z-index: 999;
+            pointer-events: auto;
+            white-space: normal;
+        }
+
+        .tooltip-text a {
+            color: #D09004;
+            text-decoration: underline;
+            /* opcjonalnie: zachowaj podkreślenie */
+        }
+
+        .tooltip-text a:hover {
+            color: #ffd700;
+            /* np. złoty po najechaniu – możesz zmienić na inny */
+        }
+
+        .tooltip-container:hover .tooltip-text,
+        .tooltip-text:hover {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip-text::after {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            /* obszar łapania myszy */
+        }
+
+        .mini-icon {
+            width: 30px;
+            height: 30px;
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            cursor: pointer;
+            z-index: 999;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .mini-icon:hover {
+            opacity: 1;
+        }
+
+        .delete-tooltip .tooltip-text {
+            left: auto;
+            right: 0;
+            transform: translateX(50%) translateY(0);
+            text-align: left;
+            max-width: 220px;
+            padding: 8px 10px;
+            white-space: normal;
+        }
+
+        .tooltip-text::after {
+            left: auto;
+            right: 0;
+        }
+    </style>
 </head>
+
 <body>
-  <div class="top-section">
-    <!-- <img id="logo" src="icon.png" alt="Logo" -->
-    <img id="name" src="name_gray.png" alt="Name">
-    <img id="graphic" src="graphic3.png" alt="Graphic">
-  </div>
-
-  <div class="content-section">
-    <div id="instructionsBoxa" style="display: none;"></div>
-    <div id="grayBoxa">Aby wyeksportować dane z platformy Finax, wejdź w szczegóły transakcji swojego rachunku.             <b> Przegląd rachunków -> Szczegóły konta -> Przegląd transakcji </b></div>
-    <div id="grayBoxb">Aby wyeksportować dane z platformy Mbank, upewnij się, że jestś na właświwym profilu, a następnie przejdź do histori inwestycji: <b>Produkty -> Inwestycje -> Wszystkie -> Twój portfel inwestycyjny -> Historia</b></div>
-    <div id="instructionsBoxb">Jeśli chcesz pobrać dane kupna i sprzedaży akcji, przejdź do zakładki <b>Kupno/Sprzedaż</b>.<br>Jeżeli chcesz pobrać dane operacji na koncie, przejdź do zakładki <b>Operacje</b>.</div>
-    <div id="PPKWarningBox"><b>Zaloguj się i przejdź do widoku transakcji które chcesz zaimportować. Nie musisz rozwijać szczegułów tranzackji, wtyczka zrobi to za Ciebie.</b></div>
-    <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
-    <div id="dateWarningBox"><b>Upewnij się, że wybrałeś odpowiedni zakres dat.</b></div>
-    <button id="exportBtn">📥 Pobierz dane</button>
-    \<!--
-    <button id="downloadStoredBtn" style="display: none;">⬇️ Pobierz zapisany plik</button>
-    -->
-    <div id="warning"></div>
-    <div id="actionContainer"></div>
-  </div>
-
-  <div id="bottomIcons">
-    <img id="myfundIcon" class="icon" src="icon.png" title="MyFund">
-    <img id="finaxIcon" class="icon" src="finax-icon.png" title="Finax" style="display: none;">
-    <img id="mbankIcon" class="icon" src="mbank_icon.png" title="mBank" style="display: none;">
-    <img id="paribasIcon" class="icon" src="paribas_icon.png" title="BNP Paribas" style="display: none;">
-    <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
-    <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
-    <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
-    <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
-
-  <!-- WŁASNY TOOLTIP JAKO OSTATNIA IKONA -->
-    <div class="tooltip-container">
-      <img class="icon" src="info-icon.png" id="customInfoIcon">
-      <span class="tooltip-text">
-        Wejdź na stronę jednej z obsługiwanych platform (Finax, mBank, BNP Paribas, Investors, Santander, Millenium, Noble Securities) i otwórz wtyczkę.<br>
-        Na podstronie z operacjami kliknij „Pobierz dane”, aby zapisać je tymczasowo w pamięci przeglądarki.
-        Wtyczka przekieruje cię do odpowiedniej podstrony MyFund.<br>
-        Wybierz portfel, otwórz ponownie wtyczkę i kliknij: 
-        „Wklej pobrane transakcje” lub „Wklej pobrane operacje” – zależnie od typu danych.<br><br>
-  Więcej informacji znajdziesz na forum w wątkach dotyczących importu z
-  <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5332" target="_blank">Finax</a> oraz 
-  <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5346" target="_blank">mBank</a>.
-      </span>
+    <div class="top-section">
+        <!-- <img id="logo" src="icon.png" alt="Logo" -->
+        <img id="name" src="name_gray.png" alt="Name">
+        <img id="graphic" src="graphic3.png" alt="Graphic">
     </div>
-  </div>
-<div id="clearDataContainer" class="tooltip-container delete-tooltip">
-  <img id="clearDataIcon" class="mini-icon" src="trash_dark.svg" title="">
-  <span class="tooltip-text">Usuń dane z pamięci przeglądarki</span>
-</div>
+
+    <div class="content-section">
+        <div id="instructionsBoxa" style="display: none;"></div>
+        <div id="grayBoxa">Aby wyeksportować dane z platformy Finax, wejdź w szczegóły transakcji swojego rachunku. <b> Przegląd rachunków -> Szczegóły konta -> Przegląd transakcji </b></div>
+        <div id="grayBoxb">Aby wyeksportować dane z platformy Mbank, upewnij się, że jestś na właświwym profilu, a następnie przejdź do histori inwestycji: <b>Produkty -> Inwestycje -> Wszystkie -> Twój portfel inwestycyjny -> Historia</b></div>
+        <div id="instructionsBoxb">Jeśli chcesz pobrać dane kupna i sprzedaży akcji, przejdź do zakładki <b>Kupno/Sprzedaż</b>.<br>Jeżeli chcesz pobrać dane operacji na koncie, przejdź do zakładki <b>Operacje</b>.</div>
+        <div id="PPKWarningBox"><b>Zaloguj się i przejdź do widoku transakcji które chcesz zaimportować. Nie musisz rozwijać szczegułów tranzackji, wtyczka zrobi to za Ciebie.</b></div>
+        <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
+        <div id="dateWarningBox"><b>Upewnij się, że wybrałeś odpowiedni zakres dat.</b></div>
+        <button id="exportBtn">📥 Pobierz dane</button>
+
+        <button id="downloadStoredBtn" style="display: none;">⬇️ Pobierz zapisany plik</button>
+
+        <div id="warning"></div>
+        <div id="actionContainer"></div>
+    </div>
+
+    <div id="bottomIcons">
+        <img id="myfundIcon" class="icon" src="icon.png" title="MyFund">
+        <img id="finaxIcon" class="icon" src="finax-icon.png" title="Finax" style="display: none;">
+        <img id="mbankIcon" class="icon" src="mbank_icon.png" title="mBank" style="display: none;">
+        <img id="paribasIcon" class="icon" src="paribas_icon.png" title="BNP Paribas" style="display: none;">
+        <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
+        <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
+        <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
+        <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
+
+        <!-- WŁASNY TOOLTIP JAKO OSTATNIA IKONA -->
+        <div class="tooltip-container">
+            <img class="icon" src="info-icon.png" id="customInfoIcon">
+            <span class="tooltip-text">
+                Wejdź na stronę jednej z obsługiwanych platform (Finax, mBank, BNP Paribas, Investors, Santander, Millenium, Noble Securities) i otwórz wtyczkę.<br>
+                Na podstronie z operacjami kliknij „Pobierz dane”, aby zapisać je tymczasowo w pamięci przeglądarki.
+                Wtyczka przekieruje cię do odpowiedniej podstrony MyFund.<br>
+                Wybierz portfel, otwórz ponownie wtyczkę i kliknij:
+                „Wklej pobrane transakcje” lub „Wklej pobrane operacje” – zależnie od typu danych.<br><br>
+                Więcej informacji znajdziesz na forum w wątkach dotyczących importu z
+                <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5332" target="_blank">Finax</a> oraz
+                <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5346" target="_blank">mBank</a>.
+            </span>
+        </div>
+    </div>
+    <div id="clearDataContainer" class="tooltip-container delete-tooltip">
+        <img id="clearDataIcon" class="mini-icon" src="trash_dark.svg" title="">
+        <span class="tooltip-text">Usuń dane z pamięci przeglądarki</span>
+    </div>
 
 
-  <script src="popup.js"></script>
+    <script src="popup.js"></script>
 </body>
+
 </html>

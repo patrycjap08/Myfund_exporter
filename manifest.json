@@ -26,6 +26,7 @@
     "content_scripts": [
   {
     "matches": [
+      "https://finax.eu/*",
       "https://www.finax.eu/*",
       "https://myfund.pl/*",
       "https://online.mbank.pl/*",
