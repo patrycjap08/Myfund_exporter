@@ -1507,107 +1507,142 @@ function extractAndSaveTable() {
 // 📋 Wyciągnięcie danych z tabel Noble i zapisanie jako CSV
 
 function extractAndSaveTable_noble() {
-  const filename = "noble_export.csv";
-  const headers = [
-    "Data",
-    "Papier",
-    "Rodzaj operacji",
-    "Liczba",
-    "Kurs/Cena",
-    "Prowizja DM",
-    "Wartość netto",
-    "Wartość brutto",
-    "Emitent"
-  ];
-  const rows = [headers];
+    const filename = "noble_export.csv";
+    const headers = [
+        "Data",
+        "Papier",
+        "Rodzaj operacji",
+        "Liczba",
+        "Kurs/Cena",
+        "Prowizja DM",
+        "Wartość netto",
+        "Wartość brutto",
+        "Emitent"
+    ];
+    const rows = [headers];
 
-  const parseNumber = (text) => {
-    if (!text) return "";
-    const cleaned = text.trim()
-      .replace(/\u00a0/g, "")
-      .replace(",", ".")
-      .replace(/[^\d.-]/g, "");
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? "" : num;
-  };
+    const parseNumber = (text) => {
+        if (!text) return "";
+        const cleaned = String(text).trim()
+            .replace(/\u00a0/g, "")     // NBSP
+            .replace(/\s/g, "")         // zwykłe spacje
+            .replace(",", ".")
+            .replace(/[^\d.-]/g, "");
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? "" : num;
+    };
 
-  const getValueWithCurrency = (td) => {
-    if (!td) return "";
-    const text = td.textContent.trim().replace(/\u00a0/g, " ").replace(/\s+/g, " ");
-    const match = text.match(/^([\d\s.,]+)\s*(\w+)$/); // np. "10 005,60 PLN"
-    if (!match) return text;
-
-    const numeric = match[1].replace(/\s/g, "").replace(",", "."); // "10005.60"
-    const currency = match[2];
-    return `${numeric} ${currency}`;
-  };
-
-  const buttons = Array.from(document.querySelectorAll("td.col-show-instrument-history button"));
-  buttons.forEach(btn => {
-    if (btn.textContent.trim() !== "Zamknij") btn.click();
-  });
-
-  setTimeout(() => {
-    const mainRows = Array.from(document.querySelectorAll("tbody.ui-table-tbody > tr"));
-
-    for (let i = 0; i < mainRows.length; i++) {
-      const mainRow = mainRows[i];
-      const nextRow = mainRow.nextElementSibling;
-
-      const papier = mainRow.querySelector(".col-instrument label")?.textContent.trim() || "";
-      const emitent = mainRow.querySelector(".col-issuer")?.textContent.trim() || "";
-
-      const tbody = nextRow?.querySelector("table .ui-table-tbody");
-      if (!tbody) continue;
-
-      const detailsRows = Array.from(tbody.querySelectorAll("tr"));
-      for (const row of detailsRows) {
-        const data = row.querySelector(".col-operation-date")?.textContent.trim() || "";
-        const rodzaj = row.querySelector(".col-operation-type")?.textContent.trim() || "";
-        const liczba = parseNumber(row.querySelector(".col-amount")?.textContent);
-        const cena = parseNumber(row.querySelector(".col-price")?.textContent);
-        const prowizja = parseNumber(row.querySelector(".col-commission")?.textContent);
-        const netto = getValueWithCurrency(row.querySelector(".col-net-value"));
-        const brutto = getValueWithCurrency(row.querySelector(".col-gross-value"));
-
-        rows.push([
-          data,
-          papier,
-          rodzaj,
-          liczba,
-          cena,
-          prowizja,
-          netto,
-          brutto,
-          emitent
-        ]);
-      }
-    }
-
-    if (rows.length === 1) return alert("Brak danych do eksportu.");
-
-    const csvContent = rows.map((row, rowIndex) =>
-      row.map((cell, colIndex) => {
-        if (rowIndex === 0 || colIndex <= 2 || colIndex >= 6) return `"${cell}"`;
-        return cell;
-      }).join(";")
-    ).join("\n");
-
-    chrome.storage.local.remove([
-      "finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv",
-      "paribas_export.csv", "milenium_export.csv", "investors_export.csv",
-      "santander_export.csv", "noble_export.csv"
-    ], () => {
-      chrome.storage.local.set({ [filename]: csvContent }, () => {
-        if (!chrome.runtime.lastError) {
-          chrome.runtime.sendMessage({ action: "dataSaved" });
-          chrome.runtime.sendMessage({ action: "checkStorage" });
+    // Dostosowane do nowego HTML:
+    //  - wartość jest w 1. węźle tekstowym TD
+    //  - waluta (np. PLN) w <span class="col-text-addon">
+    const getValueWithCurrency = (td) => {
+        if (!td) return "";
+        const rawVal =
+            (td.childNodes && td.childNodes[0] && td.childNodes[0].textContent) ?
+            td.childNodes[0].textContent : td.textContent;
+        const val = String(rawVal).trim().replace(/\u00a0/g, " ").replace(/\s+/g, " ");
+        const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
+        if (!currency) {
+            // fallback do starego wzorca "10 005,60 PLN"
+            const match = val.match(/^([\d\s.,-]+)\s*(\w+)$/);
+            if (match) {
+                const numeric = match[1].replace(/\s/g, "").replace(",", ".");
+                return `${numeric} ${match[2]}`;
+            }
+            // albo surowy tekst jeśli bez waluty
+            return val;
         }
-      });
+        const numeric = val.replace(/\s/g, "").replace(",", ".");
+        return `${numeric} ${currency}`;
+    };
+
+    // 1) Kliknij wszystkie przyciski w kolumnie szczegółów, jeśli ich tekst ≠ "Zamknij"
+    const buttons = Array.from(document.querySelectorAll("td.col-show-instrument-history button"));
+    buttons.forEach(btn => {
+        const label = (btn.querySelector("span")?.textContent || btn.textContent || "").trim();
+        if (label !== "Zamknij") btn.click();
     });
 
-  }, 1000);
+    // 2) Poczekaj jak w oryginale
+    setTimeout(() => {
+        // Główna zmiana: Noble przeszło z ui-table na p-datatable.
+        // Bierzemy oba warianty, a potem i tak filtrujemy tylko te wiersze, które mają kolumnę z przyciskiem.
+        const mainRowsAll = Array.from(document.querySelectorAll(
+            "tbody.p-datatable-tbody > tr, tbody.ui-table-tbody > tr"
+        ));
+        const mainRows = mainRowsAll.filter(tr => tr.querySelector(".col-show-instrument-history"));
+
+        for (let i = 0; i < mainRows.length; i++) {
+            const mainRow = mainRows[i];
+            const nextRow = mainRow.nextElementSibling;
+
+            // Jak wcześniej: Papier i Emitent z wiersza głównego
+            const papier =
+                mainRow.querySelector(".col-instrument .name")?.textContent.trim() ||
+                mainRow.querySelector(".col-instrument label")?.textContent.trim() || "";
+            const emitent = mainRow.querySelector(".col-issuer")?.textContent.trim() || "";
+
+            // Detale: teraz siedzą w .detailEntries i PrimeNG-owym tbody
+            const tbody =
+                nextRow?.querySelector(".detailEntries table tbody.p-datatable-tbody") ||
+                nextRow?.querySelector(".detailEntries table tbody.ui-table-tbody") ||
+                nextRow?.querySelector("table tbody.p-datatable-tbody") ||
+                nextRow?.querySelector("table tbody.ui-table-tbody");
+
+            if (!tbody) continue;
+
+            const detailsRows = Array.from(tbody.querySelectorAll("tr"));
+            for (const row of detailsRows) {
+                const data     = row.querySelector(".col-operation-date")?.textContent.trim() || "";
+                const rodzaj   = row.querySelector(".col-operation-type")?.textContent.trim() || "";
+                const liczba   = parseNumber(row.querySelector(".col-amount")?.textContent);
+                const cena     = parseNumber(row.querySelector(".col-price")?.textContent);
+                const prowizja = parseNumber(row.querySelector(".col-commission")?.textContent);
+                const netto    = getValueWithCurrency(row.querySelector(".col-net-value"));
+                const brutto   = getValueWithCurrency(row.querySelector(".col-gross-value"));
+
+                rows.push([
+                    data,
+                    papier,
+                    rodzaj,
+                    liczba,
+                    cena,
+                    prowizja,
+                    netto,
+                    brutto,
+                    emitent
+                ]);
+            }
+        }
+
+        if (rows.length === 1) return alert("Brak danych do eksportu.");
+
+        // CSV jak w Twoim oryginale: średniki; nagłówki + tekstowe w cudzysłowach
+        const csvContent = rows.map((row, rowIndex) =>
+            row.map((cell, colIndex) => {
+                if (rowIndex === 0 || colIndex <= 2 || colIndex >= 6) return `"${cell}"`;
+                return cell;
+            }).join(";")
+        ).join("\n");
+
+        chrome.storage.local.remove([
+            "finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv",
+            "paribas_export.csv", "milenium_export.csv", "investors_export.csv",
+            "santander_export.csv", "noble_export.csv"
+        ], () => {
+            chrome.storage.local.set({
+                [filename]: csvContent
+            }, () => {
+                if (!chrome.runtime.lastError) {
+                    chrome.runtime.sendMessage({ action: "dataSaved" });
+                    chrome.runtime.sendMessage({ action: "checkStorage" });
+                }
+            });
+        });
+
+    }, 1000);
 }
+
 
 
 // 🎯 Pokaż ikonę Finax/mBank w zależności od aktywnej zakładki
