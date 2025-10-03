@@ -483,7 +483,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=Noble", "_blank");
                 actionContainer.appendChild(btn);
             }
-            if (tabUrl.includes("sourcePlugin=mBankSFI")) {
+            if (tabUrl.includes("raport=ImportOperacji")) {
                 if (data["mbank_export.csv"]) {
                     const pasteBtn = document.createElement("button");
                     pasteBtn.className = "BUTTON";
@@ -501,7 +501,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     actionContainer.appendChild(pasteBtn);
                 }
             }
-            if (tabUrl.includes("sourcePlugin=Noble")) {
+            if (tabUrl.includes("raport=ImportOperacji")) {
                 if (data["noble_export.csv"]) {
                     const pasteBtn = document.createElement("button");
                     pasteBtn.className = "BUTTON";
