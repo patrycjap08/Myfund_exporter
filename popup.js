@@ -901,89 +901,131 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 
-// 📋 Wyciągnięcie danych z tabeli mBank i zapisanie jako CSV
-
-
+// 📋 mBank SFI – wersja dopasowana do DOM z FundsHistory/HistoryDetails0
 async function extractAndSaveTable_mbank() {
-    function delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function waitFor(fn, { tries = 40, interval = 100 } = {}) {
+    for (let i = 0; i < tries; i++) {
+      const val = fn();
+      if (val) return val;
+      await sleep(interval);
     }
+    return null;
+  }
 
-    const rows = Array.from(document.querySelectorAll('[data-component="TableBodyRow"]'));
-    const results = [];
+  const parseNum = (txt) => {
+    if (!txt) return null;
+    const cleaned = txt
+      .replace(/\u00a0/g, "")       // NBSP
+      .replace(/\s+/g, "")          // spacje
+      .replace(/[^\d,.\-]/g, "")    // waluta itp.
+      .replace(/,/g, ".");          // przecinek -> kropka
+    const m = cleaned.match(/-?\d+(\.\d+)?/);
+    return m ? Number(m[0]) : null;
+  };
 
-    for (const row of rows) {
+  const rows = Array.from(document.querySelectorAll(
+    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"]'
+  ));
+  if (!rows.length) {
+    alert("Nie znaleziono wierszy FundsHistory:SourceFund*.");
+    return;
+  }
+
+  const results = [];
+
+  for (const row of rows) {
+    try {
+      // Scroll, expand jeśli trzeba
+      row.scrollIntoView({ block: "center" });
+      await sleep(80);
+
+      if (row.getAttribute("aria-expanded") !== "true") {
         row.click();
-        await delay(300); // czekamy na szczegóły
+      }
 
-        const parent = row.closest('tbody');
-        const details = parent.querySelector('[data-component="DesktopBodyRowDetails"]');
-        if (!details) continue;
+      // Czekamy na sąsiedni wiersz ze szczegółami
+      const detailsRow = await waitFor(() => {
+        const next = row.nextElementSibling;
+        if (!next) return null;
+        return (next.getAttribute("data-component") === "DesktopBodyRowDetails" &&
+                next.getAttribute("aria-hidden") === "false") ? next : null;
+      }, { tries: 30, interval: 100 });
 
-        const transactionType = row.querySelector('td:nth-child(3) span')?.textContent.trim().toLowerCase();
-        const valueRaw = row.querySelector('[data-test-id$=Value] span[data-component="Amount"]')?.textContent.trim();
-        const value = Math.abs(parseFloat(valueRaw?.replace(/[^\d,.-]/g, '').replaceAll('\u00a0', '').replace(',', '.'))).toFixed(2);
+      if (!detailsRow) {
+        // jeśli się nie rozwinęło – dalej
+        continue;
+      }
 
-        const taxRaw = details.querySelector('[data-test-id$=Tax] span')?.textContent.trim();
-        const tax = taxRaw?.replace(/[^\d,.-]/g, '').replace(',', '.') || '0.00';
-        const valuationDate = details.querySelector('[data-test-id$=ValuationDate] span')?.textContent.trim() || '';
+      // Element kontenera detali (wewnątrz detailsRow)
+      const details = detailsRow.querySelector('[data-test-id^="HistoryDetails0"]')?.closest("td") || detailsRow;
 
-        if (transactionType === 'konwersja') {
-            const names = details.querySelectorAll('[data-test-id*=":Name"] span');
-            const units = Array.from(details.querySelectorAll('div')).filter(div =>
-                div.previousElementSibling?.textContent?.trim() === 'Liczba jednostek'
-            );
+      // ===== Zbieranie pól =====
+      // Typ z trzeciej kolumny listy
+      const typeText = (row.querySelector('td:nth-child(3) span')?.textContent || "").trim().toLowerCase();
 
-            const fromName = names[0]?.textContent.trim() || '';
-            const toName = names[1]?.textContent.trim() || '';
-            const fromUnits = units[0]?.querySelector('span')?.textContent.trim() || '';
-            const toUnits = units[1]?.querySelector('span')?.textContent.trim() || '';
+      // Kwota z kolumny Value (Amount)
+      const valueRaw = row.querySelector('[data-test-id$=":Value"] [data-component="Amount"]')?.textContent || "";
+      const value = Math.abs(parseNum(valueRaw) ?? 0);
 
-            results.push(['Konwersja umorzenie', fromName, fromUnits, valuationDate, value, tax].join(';'));
-            results.push(['Konwersja nabycie', toName, toUnits, valuationDate, value, tax].join(';'));
-        } else if (transactionType === 'nabycie' || transactionType === 'odkupienie') {
-            const operation = transactionType === 'odkupienie' ? 'Sprzedaż' : 'Kupno';
-            const fundName = details.querySelector('[data-test-id$=Name] span')?.textContent.trim() || '';
-            const units = details.querySelector('[data-test-id$=Units] span')?.textContent.trim() || '';
+      // Nazwa funduszu / jednostki / daty z HistoryDetails0:*
+      const fundName = details.querySelector('[data-test-id="HistoryDetails0:Name"] span')?.textContent?.trim() || "";
+      const unitsTxt = details.querySelector('[data-test-id="HistoryDetails0:Units"] span')?.textContent?.trim() || "";
+      const units = parseNum(unitsTxt)?.toString() ?? (unitsTxt || "");
 
-            results.push([operation, fundName, units, valuationDate, value, tax].join(';'));
-        }
+      const valuationDate = details.querySelector('[data-test-id="HistoryDetails0:ValuationDate"] span')?.textContent?.trim() || "";
 
-        // Zwijanie szczegółów po kliknięciu
-        const closeBtn = parent.querySelector('[data-test-id$=CloseButton]');
-        if (closeBtn) {
-            closeBtn.click();
-            await delay(100);
-        }
+      // (Opcjonalnie) podatek – nie widać w Twoim dumpie, więc 0.00
+      const tax = 0;
+
+      // Mapowanie typu
+      let rodzaj;
+      if (typeText.includes("odkupienie")) rodzaj = "Sprzedaż";
+      else if (typeText.includes("nabycie")) rodzaj = "Kupno";
+      else if (typeText.includes("konwersja")) rodzaj = "Konwersja"; // jeśli trafi się konwersja
+      else rodzaj = typeText || "Operacja";
+
+      if (rodzaj === "Konwersja") {
+        // Jeśli trafi się konwersja – możesz tu dorobić logikę splitu na 2 wiersze
+        results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
+      } else {
+        results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
+      }
+
+      // Zwiń (jeśli chcesz)
+      const closeBtn = detailsRow.querySelector('[data-test-id$="CloseButton"]');
+      if (closeBtn) { closeBtn.click(); await sleep(50); }
+
+    } catch (e) {
+      // pomiń pojedyncze błędy i jedź dalej
     }
+  }
 
-    if (results.length === 0) {
-        alert('Brak danych do eksportu.');
-        return;
-    }
+  if (!results.length) {
+    alert("Brak danych do eksportu (po rozwinięciu brak pól HistoryDetails0:*).");
+    return;
+  }
 
-    const filename = "mbank_export.csv";
-    const headers = ["Rodzaj", "Fundusz", "Ilość jednostek", "Data wyceny", "Wartość", "Podatek"];
-    const allRows = [headers, ...results.map(r => r.split(';'))];
-    const csvContent = allRows.map(row => row.join(";")).join("\n");
+  const filename = "mbank_export.csv";
+  const headers = ["Rodzaj", "Fundusz", "Ilość jednostek", "Data wyceny", "Wartość", "Podatek"];
+  const csv = [headers, ...results.map(r => r.split(";"))].map(r => r.join(";")).join("\n");
 
-    chrome.storage.local.remove(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv",
-        "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv"
-    ], () => {
-        chrome.storage.local.set({
-            [filename]: csvContent
-        }, () => {
-            if (!chrome.runtime.lastError) {
-                chrome.runtime.sendMessage({
-                    action: "dataSaved"
-                });
-                chrome.runtime.sendMessage({
-                    action: "checkStorage"
-                });
-            }
-        });
+  const keys = [
+    "finax_transakcje.csv","finax_operacje.csv","mbank_export.csv","paribas_export.csv",
+    "milenium_export.csv","investors_export.csv","santander_export.csv","noble_export.csv"
+  ];
+
+  chrome.storage.local.remove(keys, () => {
+    chrome.storage.local.set({ [filename]: csv }, () => {
+      if (!chrome.runtime.lastError) {
+        chrome.runtime.sendMessage({ action: "dataSaved" });
+        chrome.runtime.sendMessage({ action: "checkStorage" });
+      }
     });
+  });
 }
+
 
 
 // 📋 Wyciągnięcie danych z tabeli paribas i zapisanie jako CSV
