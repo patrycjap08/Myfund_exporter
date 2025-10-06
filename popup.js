@@ -901,26 +901,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 
-// 📋 mBank SFI – wersja dopasowana do DOM z FundsHistory/HistoryDetails0
+// 📋 mBank SFI – wersja z dynamicznym indeksem HistoryDetails{idx}
 async function extractAndSaveTable_mbank() {
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
   async function waitFor(fn, { tries = 40, interval = 100 } = {}) {
-    for (let i = 0; i < tries; i++) {
-      const val = fn();
-      if (val) return val;
-      await sleep(interval);
-    }
+    for (let i = 0; i < tries; i++) { const v = fn(); if (v) return v; await sleep(interval); }
     return null;
   }
-
   const parseNum = (txt) => {
     if (!txt) return null;
-    const cleaned = txt
-      .replace(/\u00a0/g, "")       // NBSP
-      .replace(/\s+/g, "")          // spacje
-      .replace(/[^\d,.\-]/g, "")    // waluta itp.
-      .replace(/,/g, ".");          // przecinek -> kropka
+    const cleaned = txt.replace(/\u00a0/g,"").replace(/\s+/g,"").replace(/[^\d,.\-]/g,"").replace(/,/g,".");
     const m = cleaned.match(/-?\d+(\.\d+)?/);
     return m ? Number(m[0]) : null;
   };
@@ -928,93 +918,70 @@ async function extractAndSaveTable_mbank() {
   const rows = Array.from(document.querySelectorAll(
     'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"]'
   ));
-  if (!rows.length) {
-    alert("Nie znaleziono wierszy FundsHistory:SourceFund*.");
-    return;
-  }
+  if (!rows.length) { alert("Nie znaleziono wierszy FundsHistory:SourceFund*."); return; }
 
   const results = [];
 
   for (const row of rows) {
     try {
-      // Scroll, expand jeśli trzeba
       row.scrollIntoView({ block: "center" });
       await sleep(80);
 
-      if (row.getAttribute("aria-expanded") !== "true") {
-        row.click();
-      }
+      // pobierz indeks z data-test-id, np. SourceFund1 -> idx=1
+      const dtid = row.getAttribute("data-test-id") || "";
+      const m = dtid.match(/SourceFund(\d+)/);
+      const idx = m ? m[1] : "0";
 
-      // Czekamy na sąsiedni wiersz ze szczegółami
+      if (row.getAttribute("aria-expanded") !== "true") row.click();
+
+      // sąsiedni TR z detalami w tym samym <tbody>
       const detailsRow = await waitFor(() => {
         const next = row.nextElementSibling;
-        if (!next) return null;
-        return (next.getAttribute("data-component") === "DesktopBodyRowDetails" &&
+        return (next &&
+                next.getAttribute("data-component") === "DesktopBodyRowDetails" &&
                 next.getAttribute("aria-hidden") === "false") ? next : null;
       }, { tries: 30, interval: 100 });
+      if (!detailsRow) continue;
 
-      if (!detailsRow) {
-        // jeśli się nie rozwinęło – dalej
-        continue;
-      }
-
-      // Element kontenera detali (wewnątrz detailsRow)
-      const details = detailsRow.querySelector('[data-test-id^="HistoryDetails0"]')?.closest("td") || detailsRow;
-
-      // ===== Zbieranie pól =====
-      // Typ z trzeciej kolumny listy
+      // ===== Dane z listy (typ, kwota) =====
       const typeText = (row.querySelector('td:nth-child(3) span')?.textContent || "").trim().toLowerCase();
-
-      // Kwota z kolumny Value (Amount)
       const valueRaw = row.querySelector('[data-test-id$=":Value"] [data-component="Amount"]')?.textContent || "";
       const value = Math.abs(parseNum(valueRaw) ?? 0);
+      const tax = 0; // brak w Twoim DOM
 
-      // Nazwa funduszu / jednostki / daty z HistoryDetails0:*
-      const fundName = details.querySelector('[data-test-id="HistoryDetails0:Name"] span')?.textContent?.trim() || "";
-      const unitsTxt = details.querySelector('[data-test-id="HistoryDetails0:Units"] span')?.textContent?.trim() || "";
-      const units = parseNum(unitsTxt)?.toString() ?? (unitsTxt || "");
+      // ===== Dane ze szczegółów HistoryDetails{idx}:* =====
+      const q = (name) => detailsRow.querySelector(`[data-test-id="HistoryDetails${idx}:${name}"] span`)?.textContent?.trim() || "";
+      // fallback, gdyby indeks jednak nie pasował (bezpiecznik)
+      const qAny = (name) => detailsRow.querySelector(`[data-test-id^="HistoryDetails"][data-test-id$=":${name}"] span`)?.textContent?.trim() || "";
 
-      const valuationDate = details.querySelector('[data-test-id="HistoryDetails0:ValuationDate"] span')?.textContent?.trim() || "";
+      const fundName = q("Name") || qAny("Name");
+      const unitsTxt = q("Units") || qAny("Units");
+      const units = (parseNum(unitsTxt)?.toString()) ?? (unitsTxt || "");
+      const valuationDate = q("ValuationDate") || qAny("ValuationDate");
 
-      // (Opcjonalnie) podatek – nie widać w Twoim dumpie, więc 0.00
-      const tax = 0;
-
-      // Mapowanie typu
       let rodzaj;
       if (typeText.includes("odkupienie")) rodzaj = "Sprzedaż";
       else if (typeText.includes("nabycie")) rodzaj = "Kupno";
-      else if (typeText.includes("konwersja")) rodzaj = "Konwersja"; // jeśli trafi się konwersja
+      else if (typeText.includes("konwersja")) rodzaj = "Konwersja";
       else rodzaj = typeText || "Operacja";
 
-      if (rodzaj === "Konwersja") {
-        // Jeśli trafi się konwersja – możesz tu dorobić logikę splitu na 2 wiersze
-        results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
-      } else {
-        results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
-      }
+      // TODO: jeśli trafisz realną „konwersję”, można tu rozbić na 2 rekordy (umorzenie/nabycie)
+      results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
 
-      // Zwiń (jeśli chcesz)
+      // opcjonalnie zwiń
       const closeBtn = detailsRow.querySelector('[data-test-id$="CloseButton"]');
       if (closeBtn) { closeBtn.click(); await sleep(50); }
-
-    } catch (e) {
-      // pomiń pojedyncze błędy i jedź dalej
-    }
+    } catch (_) { /* pomijamy pojedyncze błędy */ }
   }
 
-  if (!results.length) {
-    alert("Brak danych do eksportu (po rozwinięciu brak pól HistoryDetails0:*).");
-    return;
-  }
+  if (!results.length) { alert("Brak danych do eksportu."); return; }
 
   const filename = "mbank_export.csv";
-  const headers = ["Rodzaj", "Fundusz", "Ilość jednostek", "Data wyceny", "Wartość", "Podatek"];
+  const headers = ["Rodzaj","Fundusz","Ilość jednostek","Data wyceny","Wartość","Podatek"];
   const csv = [headers, ...results.map(r => r.split(";"))].map(r => r.join(";")).join("\n");
 
-  const keys = [
-    "finax_transakcje.csv","finax_operacje.csv","mbank_export.csv","paribas_export.csv",
-    "milenium_export.csv","investors_export.csv","santander_export.csv","noble_export.csv"
-  ];
+  const keys = ["finax_transakcje.csv","finax_operacje.csv","mbank_export.csv","paribas_export.csv",
+                "milenium_export.csv","investors_export.csv","santander_export.csv","noble_export.csv"];
 
   chrome.storage.local.remove(keys, () => {
     chrome.storage.local.set({ [filename]: csv }, () => {
@@ -1025,6 +992,7 @@ async function extractAndSaveTable_mbank() {
     });
   });
 }
+
 
 
 
