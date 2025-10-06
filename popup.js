@@ -901,7 +901,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 
-// 📋 mBank SFI – wersja z dynamicznym indeksem HistoryDetails{idx}
+// 📋 mBank SFI – wersja z dynamicznym indeksem HistoryDetails{idx} + split KONWERSJI
 async function extractAndSaveTable_mbank() {
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   async function waitFor(fn, { tries = 40, interval = 100 } = {}) {
@@ -951,7 +951,6 @@ async function extractAndSaveTable_mbank() {
 
       // ===== Dane ze szczegółów HistoryDetails{idx}:* =====
       const q = (name) => detailsRow.querySelector(`[data-test-id="HistoryDetails${idx}:${name}"] span`)?.textContent?.trim() || "";
-      // fallback, gdyby indeks jednak nie pasował (bezpiecznik)
       const qAny = (name) => detailsRow.querySelector(`[data-test-id^="HistoryDetails"][data-test-id$=":${name}"] span`)?.textContent?.trim() || "";
 
       const fundName = q("Name") || qAny("Name");
@@ -965,8 +964,49 @@ async function extractAndSaveTable_mbank() {
       else if (typeText.includes("konwersja")) rodzaj = "Konwersja";
       else rodzaj = typeText || "Operacja";
 
-      // TODO: jeśli trafisz realną „konwersję”, można tu rozbić na 2 rekordy (umorzenie/nabycie)
-      results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
+      // ===== JEDYNA ZMIANA: obsługa KONWERSJI -> 2 wiersze (umorzenie + nabycie)
+      if (rodzaj === "Konwersja") {
+        // 1) Spróbuj znaleźć 2 nazwy i 2 liczby jednostek przez HistoryDetails*:Name/Units
+        const nameNodes = Array.from(detailsRow.querySelectorAll('[data-test-id^="HistoryDetails"][data-test-id$=":Name"] span'));
+        const unitNodes = Array.from(detailsRow.querySelectorAll('[data-test-id^="HistoryDetails"][data-test-id$=":Units"] span'));
+
+        let fromName, toName, fromUnits, toUnits;
+
+        if (nameNodes.length >= 2 && unitNodes.length >= 2) {
+          fromName  = nameNodes[0]?.textContent?.trim() || "";
+          toName    = nameNodes[1]?.textContent?.trim() || "";
+          fromUnits = parseNum(unitNodes[0]?.textContent || "") ?? (unitNodes[0]?.textContent?.trim() || "");
+          toUnits   = parseNum(unitNodes[1]?.textContent || "") ?? (unitNodes[1]?.textContent?.trim() || "");
+        } else {
+          // 2) Fallback: LabelData:label / LabelData:data (szukamy „Nazwa funduszu” i „Liczba jednostek”)
+          const pairs = Array.from(detailsRow.querySelectorAll('[data-test-id="LabelData:label"]')).map(lbl => {
+            const label = lbl.textContent.trim().toLowerCase();
+            const dataEl = lbl.closest('[data-component="Box"]')?.querySelector('[data-test-id="LabelData:data"]');
+            const val = dataEl ? (dataEl.querySelector('span, [data-component="Amount"]')?.textContent?.trim() || "") : "";
+            return { label, val };
+          });
+          const names = pairs.filter(p => p.label.includes("nazwa funduszu")).map(p => p.val);
+          const unitsArr = pairs.filter(p => p.label.includes("liczba jednostek")).map(p => p.val);
+
+          if (names.length >= 2 && unitsArr.length >= 2) {
+            fromName  = names[0] || "";
+            toName    = names[1] || "";
+            fromUnits = parseNum(unitsArr[0]) ?? (unitsArr[0] || "");
+            toUnits   = parseNum(unitsArr[1]) ?? (unitsArr[1] || "");
+          }
+        }
+
+        if (fromName !== undefined && toName !== undefined) {
+          results.push(['Konwersja umorzenie', fromName, fromUnits, valuationDate, value.toFixed(2), tax.toFixed(2)].join(';'));
+          results.push(['Konwersja nabycie',   toName,   toUnits,   valuationDate, value.toFixed(2), tax.toFixed(2)].join(';'));
+        } else {
+          // ostateczny fallback — jeden wiersz, żeby nie zgubić danych
+          results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
+        }
+      } else {
+        // bez zmian dla Kupno/Sprzedaż/Operacja
+        results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
+      }
 
       // opcjonalnie zwiń
       const closeBtn = detailsRow.querySelector('[data-test-id$="CloseButton"]');
