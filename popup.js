@@ -901,7 +901,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 
-// 📋 mBank SFI – wersja z dynamicznym indeksem HistoryDetails{idx} + split KONWERSJI
+// 📋 mBank SFI – Twoja baza + (1) obsługa DestinationFund w selektorach + (2) split KONWERSJI
 async function extractAndSaveTable_mbank() {
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   async function waitFor(fn, { tries = 40, interval = 100 } = {}) {
@@ -915,10 +915,12 @@ async function extractAndSaveTable_mbank() {
     return m ? Number(m[0]) : null;
   };
 
+  // (1) Łapiemy i SourceFund*, i DestinationFund*
   const rows = Array.from(document.querySelectorAll(
-    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"]'
+    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
+    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
   ));
-  if (!rows.length) { alert("Nie znaleziono wierszy FundsHistory:SourceFund*."); return; }
+  if (!rows.length) { alert("Nie znaleziono wierszy FundsHistory:SourceFund*/DestinationFund*."); return; }
 
   const results = [];
 
@@ -927,14 +929,14 @@ async function extractAndSaveTable_mbank() {
       row.scrollIntoView({ block: "center" });
       await sleep(80);
 
-      // pobierz indeks z data-test-id, np. SourceFund1 -> idx=1
+      // (2) Indeks z SourceFundX LUB DestinationFundX
       const dtid = row.getAttribute("data-test-id") || "";
-      const m = dtid.match(/SourceFund(\d+)/);
+      const m = dtid.match(/(?:SourceFund|DestinationFund)(\d+)/);
       const idx = m ? m[1] : "0";
 
       if (row.getAttribute("aria-expanded") !== "true") row.click();
 
-      // sąsiedni TR z detalami w tym samym <tbody>
+      // sąsiedni TR ze szczegółami
       const detailsRow = await waitFor(() => {
         const next = row.nextElementSibling;
         return (next &&
@@ -943,30 +945,36 @@ async function extractAndSaveTable_mbank() {
       }, { tries: 30, interval: 100 });
       if (!detailsRow) continue;
 
-      // ===== Dane z listy (typ, kwota) =====
+      // ===== Dane z listy
       const typeText = (row.querySelector('td:nth-child(3) span')?.textContent || "").trim().toLowerCase();
-      const valueRaw = row.querySelector('[data-test-id$=":Value"] [data-component="Amount"]')?.textContent || "";
-      const value = Math.abs(parseNum(valueRaw) ?? 0);
-      const tax = 0; // brak w Twoim DOM
 
-      // ===== Dane ze szczegółów HistoryDetails{idx}:* =====
-      const q = (name) => detailsRow.querySelector(`[data-test-id="HistoryDetails${idx}:${name}"] span`)?.textContent?.trim() || "";
-      const qAny = (name) => detailsRow.querySelector(`[data-test-id^="HistoryDetails"][data-test-id$=":${name}"] span`)?.textContent?.trim() || "";
+      // W wierszu konwersji są 2 kwoty; bierzemy pierwszą znalezioną i robimy |value|
+      const valueRaw = row.querySelector('[data-test-id$=":Value"] [data-component="Amount"]')?.textContent
+                    || row.querySelector('[data-component="Amount"]')?.textContent
+                    || "";
+      const valueAbs = Math.abs(parseNum(valueRaw) ?? 0);
+      const tax = 0;
 
-      const fundName = q("Name") || qAny("Name");
-      const unitsTxt = q("Units") || qAny("Units");
-      const units = (parseNum(unitsTxt)?.toString()) ?? (unitsTxt || "");
+      // ===== Dane ze szczegółów HistoryDetails{idx}:*
+      const q   = (name) => detailsRow.querySelector(`[data-test-id="HistoryDetails${idx}:${name}"] span`)?.textContent?.trim() || "";
+      const qAny= (name) => detailsRow.querySelector(`[data-test-id^="HistoryDetails"][data-test-id$=":${name}"] span`)?.textContent?.trim() || "";
+
       const valuationDate = q("ValuationDate") || qAny("ValuationDate");
 
+      // Prosty przypadek (Kupno/Sprzedaż) – pojedynczy fundusz/jednostki
+      const singleName = q("Name") || qAny("Name");
+      const singleUnitsTxt = q("Units") || qAny("Units");
+      const singleUnits = (parseNum(singleUnitsTxt)?.toString()) ?? (singleUnitsTxt || "");
+
       let rodzaj;
-      if (typeText.includes("odkupienie")) rodzaj = "Sprzedaż";
+      if (typeText.includes("odkup")) rodzaj = "Sprzedaż";
       else if (typeText.includes("nabycie")) rodzaj = "Kupno";
       else if (typeText.includes("konwersja")) rodzaj = "Konwersja";
       else rodzaj = typeText || "Operacja";
 
-      // ===== JEDYNA ZMIANA: obsługa KONWERSJI -> 2 wiersze (umorzenie + nabycie)
       if (rodzaj === "Konwersja") {
-        // 1) Spróbuj znaleźć 2 nazwy i 2 liczby jednostek przez HistoryDetails*:Name/Units
+        // —— KONWERSJA: 2 nazwy + 2 liczby jednostek —> 2 wiersze
+        // A) spróbuj po HistoryDetails*:Name/Units (złapie np. Name/Units dwóch funduszy)
         const nameNodes = Array.from(detailsRow.querySelectorAll('[data-test-id^="HistoryDetails"][data-test-id$=":Name"] span'));
         const unitNodes = Array.from(detailsRow.querySelectorAll('[data-test-id^="HistoryDetails"][data-test-id$=":Units"] span'));
 
@@ -978,7 +986,7 @@ async function extractAndSaveTable_mbank() {
           fromUnits = parseNum(unitNodes[0]?.textContent || "") ?? (unitNodes[0]?.textContent?.trim() || "");
           toUnits   = parseNum(unitNodes[1]?.textContent || "") ?? (unitNodes[1]?.textContent?.trim() || "");
         } else {
-          // 2) Fallback: LabelData:label / LabelData:data (szukamy „Nazwa funduszu” i „Liczba jednostek”)
+          // B) fallback: pary LabelData:label -> LabelData:data (szukamy „Nazwa funduszu” i „Liczba jednostek”)
           const pairs = Array.from(detailsRow.querySelectorAll('[data-test-id="LabelData:label"]')).map(lbl => {
             const label = lbl.textContent.trim().toLowerCase();
             const dataEl = lbl.closest('[data-component="Box"]')?.querySelector('[data-test-id="LabelData:data"]');
@@ -996,19 +1004,28 @@ async function extractAndSaveTable_mbank() {
           }
         }
 
+        // C) jeszcze jeden drobny fallback: jeśli w wierszu listy są dwie nazwy (SourceFund.. / DestinationFund..)
+        if ((fromName === undefined || toName === undefined)) {
+          const srcFund = row.querySelector('[data-test-id$="SourceFund' + idx + ':Fund"]')?.textContent?.trim();
+          const dstFund = row.querySelector('[data-test-id$="DestinationFund' + idx + ':Fund"]')?.textContent?.trim();
+          if (srcFund && dstFund) {
+            fromName = fromName ?? srcFund;
+            toName   = toName   ?? dstFund;
+          }
+        }
+
         if (fromName !== undefined && toName !== undefined) {
-          results.push(['Konwersja umorzenie', fromName, fromUnits, valuationDate, value.toFixed(2), tax.toFixed(2)].join(';'));
-          results.push(['Konwersja nabycie',   toName,   toUnits,   valuationDate, value.toFixed(2), tax.toFixed(2)].join(';'));
+          results.push(['Konwersja umorzenie', fromName, fromUnits ?? "", valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(';'));
+          results.push(['Konwersja nabycie',   toName,   toUnits   ?? "", valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(';'));
         } else {
-          // ostateczny fallback — jeden wiersz, żeby nie zgubić danych
-          results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
+          // ostateczny fallback — jeden wiersz, by nic nie zgubić
+          results.push(['Konwersja', singleName, singleUnits, valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(";"));
         }
       } else {
-        // bez zmian dla Kupno/Sprzedaż/Operacja
-        results.push([rodzaj, fundName, units, valuationDate, value.toFixed(2), tax.toFixed(2)].join(";"));
+        // Kupno / Sprzedaż / Operacja (pojedynczy rekord)
+        results.push([rodzaj, singleName, singleUnits, valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(";"));
       }
 
-      // opcjonalnie zwiń
       const closeBtn = detailsRow.querySelector('[data-test-id$="CloseButton"]');
       if (closeBtn) { closeBtn.click(); await sleep(50); }
     } catch (_) { /* pomijamy pojedyncze błędy */ }
@@ -1032,6 +1049,7 @@ async function extractAndSaveTable_mbank() {
     });
   });
 }
+
 
 
 
