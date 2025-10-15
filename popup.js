@@ -900,81 +900,164 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-
-// 📋 mBank SFI – Twoja baza + (1) obsługa DestinationFund w selektorach + (2) split KONWERSJI
+// 📋 mBank SFI – preload wszystkich wierszy + solidniejsze rozwijanie detali + podatek tylko przy konwersji
 async function extractAndSaveTable_mbank() {
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-  async function waitFor(fn, { tries = 40, interval = 100 } = {}) {
+  async function waitFor(fn, { tries = 60, interval = 150 } = {}) {
     for (let i = 0; i < tries; i++) { const v = fn(); if (v) return v; await sleep(interval); }
     return null;
   }
   const parseNum = (txt) => {
     if (!txt) return null;
-    const cleaned = txt.replace(/\u00a0/g,"").replace(/\s+/g,"").replace(/[^\d,.\-]/g,"").replace(/,/g,".");
+    const cleaned = String(txt)
+      .replace(/\u00a0/g,"")
+      .replace(/\s+/g,"")
+      .replace(/[^\d,.\-]/g,"")
+      .replace(/,/g,".");
     const m = cleaned.match(/-?\d+(\.\d+)?/);
     return m ? Number(m[0]) : null;
   };
 
-  // (1) Łapiemy i SourceFund*, i DestinationFund*
+  // Znajdź najbliższy scrollowalny kontener (lista historii SFI zwykle w środku panelu)
+  const getScrollParent = (el) => {
+    let node = el?.parentElement;
+    while (node) {
+      const style = getComputedStyle(node);
+      const canScroll = /(auto|scroll)/.test(style.overflowY || style.overflow);
+      if (canScroll && node.scrollHeight > node.clientHeight) return node;
+      node = node.parentElement;
+    }
+    return document.scrollingElement || document.documentElement || document.body;
+  };
+
+  // Najpierw znajdź JAKIKOLWIEK wiersz, by odnaleźć kontener
+  const anyRow = document.querySelector(
+    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
+    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
+  );
+  if (!anyRow) { alert("Nie znaleziono wierszy FundsHistory:SourceFund*/DestinationFund*."); return; }
+
+  const scroller = getScrollParent(anyRow);
+
+  // ⬇️ Preload wszystkich wierszy – przewijaj do dołu dopóki przybywa
+  async function preloadAllRows(maxRounds = 20) {
+    let lastCount = 0;
+    for (let round = 0; round < maxRounds; round++) {
+      const currRows = document.querySelectorAll(
+        'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
+        'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
+      );
+      const count = currRows.length;
+      // scrolluj do dołu, by wywołać doładowanie
+      scroller.scrollTop = scroller.scrollHeight;
+      await sleep(400);
+      if (count === lastCount) {
+        // spróbuj jeszcze raz dociągnąć — małe potrząśnięcie
+        scroller.scrollTop = scroller.scrollHeight;
+        await sleep(400);
+        const newCount = document.querySelectorAll(
+          'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
+          'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
+        ).length;
+        if (newCount === count) break; // nic już nie przybywa
+        lastCount = newCount;
+      } else {
+        lastCount = count;
+      }
+    }
+  }
+
+  await preloadAllRows();
+
+  // Teraz pobierz pełną listę
   const rows = Array.from(document.querySelectorAll(
     'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
     'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
   ));
-  if (!rows.length) { alert("Nie znaleziono wierszy FundsHistory:SourceFund*/DestinationFund*."); return; }
+  if (!rows.length) { alert("Po preloadzie nadal brak wierszy."); return; }
 
   const results = [];
 
-  for (const row of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
     try {
+      // Przy wirtualizacji warto dopilnować widoczności przed kliknięciem
       row.scrollIntoView({ block: "center" });
-      await sleep(80);
+      await sleep(120);
 
-      // (2) Indeks z SourceFundX LUB DestinationFundX
+      // Indeks z SourceFundX / DestinationFundX
       const dtid = row.getAttribute("data-test-id") || "";
       const m = dtid.match(/(?:SourceFund|DestinationFund)(\d+)/);
       const idx = m ? m[1] : "0";
 
-      if (row.getAttribute("aria-expanded") !== "true") row.click();
+      // Typ operacji (kolumna 3 zwykle – ale dajmy fallback)
+      let typeText = (row.querySelector('td:nth-child(3) span')?.textContent || "").trim().toLowerCase();
+      if (!typeText) {
+        typeText = (row.querySelector('td:nth-child(3)')?.textContent || "").trim().toLowerCase();
+      }
 
-      // sąsiedni TR ze szczegółami
+      // Kwota z listy (działa nawet bez detali)
+      const valueRaw = row.querySelector('[data-test-id$=":Value"] [data-component="Amount"]')?.textContent
+                    || row.querySelector('[data-component="Amount"]')?.textContent
+                    || "";
+      const valueAbs = Math.abs(parseNum(valueRaw) ?? 0);
+
+      // Otwórz szczegóły — najpierw klik w wiersz…
+      if (row.getAttribute("aria-expanded") !== "true") row.click();
+      // …fallback: spróbuj kliknąć dowolny przycisk w wierszu
+      if (row.getAttribute("aria-expanded") !== "true") {
+        row.querySelector('button, [role="button"]')?.click();
+      }
+
+      // Czekaj aż pokaże się sąsiadujący TR z detalami
       const detailsRow = await waitFor(() => {
         const next = row.nextElementSibling;
         return (next &&
                 next.getAttribute("data-component") === "DesktopBodyRowDetails" &&
                 next.getAttribute("aria-hidden") === "false") ? next : null;
-      }, { tries: 30, interval: 100 });
-      if (!detailsRow) continue;
+      });
+      if (!detailsRow) {
+        // Nie udało się rozwinąć – zanotuj minimalne info (wartość + typ), żeby czegoś nie zgubić
+        const minimal = (['operacja', ''].includes(typeText) ? 'Operacja' :
+                         typeText.includes('odkup') ? 'Sprzedaż' :
+                         typeText.includes('nabycie') ? 'Kupno' :
+                         typeText.includes('konwersja') ? 'Konwersja' : typeText);
+        results.push([minimal, "", "", "", valueAbs.toFixed(2), ""].join(";"));
+        continue;
+      }
 
-      // ===== Dane z listy
-      const typeText = (row.querySelector('td:nth-child(3) span')?.textContent || "").trim().toLowerCase();
+      // Szybkie query po HistoryDetails
+      const q    = (name) => detailsRow.querySelector(`[data-test-id="HistoryDetails${idx}:${name}"] span`)?.textContent?.trim() || "";
+      const qAny = (name) => detailsRow.querySelector(`[data-test-id^="HistoryDetails"][data-test-id$=":${name}"] span`)?.textContent?.trim() || "";
 
-      // W wierszu konwersji są 2 kwoty; bierzemy pierwszą znalezioną i robimy |value|
-      const valueRaw = row.querySelector('[data-test-id$=":Value"] [data-component="Amount"]')?.textContent
-                    || row.querySelector('[data-component="Amount"]')?.textContent
-                    || "";
-      const valueAbs = Math.abs(parseNum(valueRaw) ?? 0);
-      const tax = 0;
+      // Pary LabelData (fallbacki pod różne „modele” UI)
+      const labelPairs = Array.from(detailsRow.querySelectorAll('[data-test-id="LabelData:label"]')).map(lbl => {
+        const label = lbl.textContent.trim().toLowerCase();
+        const dataEl = lbl.closest('[data-component="Box"]')?.querySelector('[data-test-id="LabelData:data"]');
+        const val = dataEl ? (dataEl.querySelector('span, [data-component="Amount"]')?.textContent?.trim() || "") : "";
+        return { label, val };
+      });
+      const getLabel = (needle) => labelPairs.find(p => p.label.includes(needle))?.val || "";
 
-      // ===== Dane ze szczegółów HistoryDetails{idx}:*
-      const q   = (name) => detailsRow.querySelector(`[data-test-id="HistoryDetails${idx}:${name}"] span`)?.textContent?.trim() || "";
-      const qAny= (name) => detailsRow.querySelector(`[data-test-id^="HistoryDetails"][data-test-id$=":${name}"] span`)?.textContent?.trim() || "";
+      const valuationDate = q("ValuationDate") || qAny("ValuationDate") || getLabel("data wyceny");
 
-      const valuationDate = q("ValuationDate") || qAny("ValuationDate");
-
-      // Prosty przypadek (Kupno/Sprzedaż) – pojedynczy fundusz/jednostki
-      const singleName = q("Name") || qAny("Name");
-      const singleUnitsTxt = q("Units") || qAny("Units");
-      const singleUnits = (parseNum(singleUnitsTxt)?.toString()) ?? (singleUnitsTxt || "");
+      // Prosty przypadek — pojedynczy fundusz/jednostki
+      let singleName     = q("Name")  || qAny("Name")  || getLabel("nazwa funduszu") || "";
+      const singleUnitsT = q("Units") || qAny("Units") || getLabel("liczba jednostek") || "";
+      const singleUnits  = (parseNum(singleUnitsT)?.toString()) ?? (singleUnitsT || "");
 
       let rodzaj;
       if (typeText.includes("odkup")) rodzaj = "Sprzedaż";
       else if (typeText.includes("nabycie")) rodzaj = "Kupno";
       else if (typeText.includes("konwersja")) rodzaj = "Konwersja";
-      else rodzaj = typeText || "Operacja";
+      else rodzaj = (typeText || "Operacja").replace(/\s+/g," ");
 
       if (rodzaj === "Konwersja") {
-        // —— KONWERSJA: 2 nazwy + 2 liczby jednostek —> 2 wiersze
-        // A) spróbuj po HistoryDetails*:Name/Units (złapie np. Name/Units dwóch funduszy)
+        // Podatek tylko dla konwersji
+        let taxTxt = q("Tax") || qAny("Tax") || getLabel("podatek");
+        const taxStr = ((parseNum(taxTxt) ?? 0).toFixed(2));
+
+        // Wyciągnij 2 nazwy i 2 liczby jednostek (from/to)
         const nameNodes = Array.from(detailsRow.querySelectorAll('[data-test-id^="HistoryDetails"][data-test-id$=":Name"] span'));
         const unitNodes = Array.from(detailsRow.querySelectorAll('[data-test-id^="HistoryDetails"][data-test-id$=":Units"] span'));
 
@@ -986,16 +1069,8 @@ async function extractAndSaveTable_mbank() {
           fromUnits = parseNum(unitNodes[0]?.textContent || "") ?? (unitNodes[0]?.textContent?.trim() || "");
           toUnits   = parseNum(unitNodes[1]?.textContent || "") ?? (unitNodes[1]?.textContent?.trim() || "");
         } else {
-          // B) fallback: pary LabelData:label -> LabelData:data (szukamy „Nazwa funduszu” i „Liczba jednostek”)
-          const pairs = Array.from(detailsRow.querySelectorAll('[data-test-id="LabelData:label"]')).map(lbl => {
-            const label = lbl.textContent.trim().toLowerCase();
-            const dataEl = lbl.closest('[data-component="Box"]')?.querySelector('[data-test-id="LabelData:data"]');
-            const val = dataEl ? (dataEl.querySelector('span, [data-component="Amount"]')?.textContent?.trim() || "") : "";
-            return { label, val };
-          });
-          const names = pairs.filter(p => p.label.includes("nazwa funduszu")).map(p => p.val);
-          const unitsArr = pairs.filter(p => p.label.includes("liczba jednostek")).map(p => p.val);
-
+          const names    = labelPairs.filter(p => p.label.includes("nazwa funduszu")).map(p => p.val);
+          const unitsArr = labelPairs.filter(p => p.label.includes("liczba jednostek")).map(p => p.val);
           if (names.length >= 2 && unitsArr.length >= 2) {
             fromName  = names[0] || "";
             toName    = names[1] || "";
@@ -1004,10 +1079,10 @@ async function extractAndSaveTable_mbank() {
           }
         }
 
-        // C) jeszcze jeden drobny fallback: jeśli w wierszu listy są dwie nazwy (SourceFund.. / DestinationFund..)
+        // Dodatkowy fallback: nazwy z wiersza listy (Source/Destination)
         if ((fromName === undefined || toName === undefined)) {
-          const srcFund = row.querySelector('[data-test-id$="SourceFund' + idx + ':Fund"]')?.textContent?.trim();
-          const dstFund = row.querySelector('[data-test-id$="DestinationFund' + idx + ':Fund"]')?.textContent?.trim();
+          const srcFund = row.querySelector(`[data-test-id$="SourceFund${idx}:Fund"]`)?.textContent?.trim();
+          const dstFund = row.querySelector(`[data-test-id$="DestinationFund${idx}:Fund"]`)?.textContent?.trim();
           if (srcFund && dstFund) {
             fromName = fromName ?? srcFund;
             toName   = toName   ?? dstFund;
@@ -1015,20 +1090,30 @@ async function extractAndSaveTable_mbank() {
         }
 
         if (fromName !== undefined && toName !== undefined) {
-          results.push(['Konwersja umorzenie', fromName, fromUnits ?? "", valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(';'));
-          results.push(['Konwersja nabycie',   toName,   toUnits   ?? "", valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(';'));
+          results.push(['Konwersja umorzenie', fromName, fromUnits ?? "", valuationDate, valueAbs.toFixed(2), taxStr].join(';'));
+          results.push(['Konwersja nabycie',   toName,   toUnits   ?? "", valuationDate, valueAbs.toFixed(2), taxStr].join(';'));
         } else {
           // ostateczny fallback — jeden wiersz, by nic nie zgubić
-          results.push(['Konwersja', singleName, singleUnits, valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(";"));
+          if (!singleName) {
+            singleName = row.querySelector(`[data-test-id$="SourceFund${idx}:Fund"]`)?.textContent?.trim()
+                      || row.querySelector(`[data-test-id$="DestinationFund${idx}:Fund"]`)?.textContent?.trim()
+                      || "";
+          }
+          results.push(['Konwersja', singleName, singleUnits, valuationDate, valueAbs.toFixed(2), taxStr].join(";"));
         }
+
       } else {
-        // Kupno / Sprzedaż / Operacja (pojedynczy rekord)
-        results.push([rodzaj, singleName, singleUnits, valuationDate, valueAbs.toFixed(2), tax.toFixed(2)].join(";"));
+        // Kupno / Sprzedaż / Operacja – podatek pusty
+        const emptyTax = "";
+        results.push([rodzaj, singleName, singleUnits, valuationDate, valueAbs.toFixed(2), emptyTax].join(";"));
       }
 
+      // Zamknij detale (porządek na stronie, ale nie jest to konieczne)
       const closeBtn = detailsRow.querySelector('[data-test-id$="CloseButton"]');
-      if (closeBtn) { closeBtn.click(); await sleep(50); }
-    } catch (_) { /* pomijamy pojedyncze błędy */ }
+      if (closeBtn) { closeBtn.click(); await sleep(60); }
+    } catch (e) {
+      // pomijamy pojedyncze błędy
+    }
   }
 
   if (!results.length) { alert("Brak danych do eksportu."); return; }
@@ -1054,110 +1139,10 @@ async function extractAndSaveTable_mbank() {
 
 
 
+
 // 📋 Wyciągnięcie danych z tabeli paribas i zapisanie jako CSV
 
 
-function extractAndSaveTable_paribas() {
-    const filename = "paribas_export.csv";
-    const headers = [
-        "Data wyceny",
-        "Fundusz docelowy",
-        "Typ transakcji",
-        "Typ oświadczenia/dyspozycji",
-        "Liczba jednostek transakcji",
-        "WANJU dla transakcji"
-    ];
-    const rows = [headers];
-
-    const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
-
-    // 1. Klikamy tylko, jeśli szczegóły nie są jeszcze widoczne
-    transactions.forEach(tr => {
-        const toggleBtn = tr.querySelector("a.nx-button");
-        const nextRow = tr.nextElementSibling;
-        const detailsAreVisible = nextRow?.classList.contains("nx-table-row__details");
-
-        if (toggleBtn && !detailsAreVisible) {
-            toggleBtn.click();
-        } else if (!toggleBtn && !detailsAreVisible) {
-            tr.dispatchEvent(new MouseEvent("click", {
-                bubbles: true
-            }));
-        }
-    });
-
-    // 2. Poczekaj, aż wszystkie szczegóły się pojawią
-    setTimeout(() => {
-        transactions.forEach(tr => {
-            const typOswiadczenia = tr.children[2]?.textContent.trim() || "";
-
-            const detailsTr = tr.nextElementSibling;
-            if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) return;
-
-            const getValue = (label) => {
-                const labels = detailsTr.querySelectorAll("span.label");
-                for (const span of labels) {
-                    if (span.textContent.trim() === label) {
-                        const h4 = span.closest(".nx-grid__row")?.querySelector("h4.ng-star-inserted");
-                        return h4?.textContent.trim().replace(/\s+/g, " ") || "";
-                    }
-                }
-                return "";
-            };
-
-            const dataWyceny = getValue("Data wyceny");
-            const fundusz = getValue("Fundusz docelowy");
-            const typTransakcji = getValue("Typ transakcji");
-
-            const liczbaJUraw = getValue("Liczba jednostek transakcji");
-            const wanjuRaw = getValue("WANJU dla transakcji");
-
-            const liczbaJU = liczbaJUraw
-                .replace(",", ".")
-                .match(/[\d.]+/)?.[0] || "";
-            const wanju = wanjuRaw
-                .replace(",", ".")
-                .match(/[\d.]+/)?.[0] || "";
-
-            rows.push([
-                `"${dataWyceny}"`,
-                `"${fundusz}"`,
-                `"${typTransakcji}"`,
-                `"${typOswiadczenia}"`,
-                liczbaJU,
-                wanju
-            ]);
-        });
-
-        if (rows.length <= 1) return alert("Brak danych do eksportu.");
-
-        const csvContent = rows.map(row => row.join(";")).join("\n");
-
-        chrome.storage.local.remove([
-            "finax_transakcje.csv",
-            "finax_operacje.csv",
-            "mbank_export.csv",
-            "paribas_export.csv",
-            "milenium_export.csv",
-            "investors_export.csv",
-            "santander_export.csv",
-            "noble_export.csv"
-        ], () => {
-            chrome.storage.local.set({
-                [filename]: csvContent
-            }, () => {
-                if (!chrome.runtime.lastError) {
-                    chrome.runtime.sendMessage({
-                        action: "dataSaved"
-                    });
-                    chrome.runtime.sendMessage({
-                        action: "checkStorage"
-                    });
-                }
-            });
-        });
-    }, 1000); // 1 sekunda opóźnienia — można zwiększyć przy wolnym internecie
-}
 
 
 // 📋 Wyciągnięcie danych z tabeli investors i zapisanie jako CSV
