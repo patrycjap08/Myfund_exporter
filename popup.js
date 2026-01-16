@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
         "finax_operacje.csv",
         "mbank_export.csv",
         "milenium_export.csv",
+        "paribas_export.csv",
         "investors_export.csv",
         "santander_export.csv",
         "noble_export.csv",
@@ -529,7 +530,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
                     warningContainer.style.display = "block";
                 }
-                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("innvestors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund")) {
+                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund")) {
                     if (data["bybit_export.csv"] && !tabUrl.includes("sourcePlugin=ByBitWtyczka")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
@@ -546,12 +547,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                         btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=mBankSFI", "_blank");
                         actionContainer.appendChild(btn);
                     }
-                    if (data["paribas_export.csv"] && !tabUrl.includes("&sourcePlugin=PNPParibas")) {
+                    if (data["paribas_export.csv"] && !tabUrl.includes("&sourcePlugin=BNPParibas")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
                         btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
                         btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=PNPParibas", "_blank");
+                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=BNPParibas", "_blank");
                         actionContainer.appendChild(btn);
                     }
                     if (data["milenium_export.csv"] && !tabUrl.includes("&sourcePlugin=MillenniumPPK")) {
@@ -594,7 +595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportPrzeplywowCrypto&_mrid=284&sourcePlugin=Finax", "_blank");
                         actionContainer.appendChild(btn);
                     }
-                    if (data["finax_transakcje.csv"] && !tabUrl.includes("raport=ImportOperacji")) {
+                    if (tabUrl.includes("raport=ImportOperacji") && !tabUrl.includes("raport=ImportOperacjiPPK")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
                         btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
@@ -620,7 +621,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             actionContainer.appendChild(pasteBtn);
                         }
                     }
-                    if (tabUrl.includes("raport=ImportOperacji")) {
+                    if (tabUrl.includes("raport=ImportOperacji") && !tabUrl.includes("raport=ImportOperacjiPPK")) {
                         if (data["finax_transakcje.csv"]) {
                             const pasteBtn = document.createElement("button");
                             pasteBtn.className = "BUTTON";
@@ -1934,6 +1935,7 @@ function extractAndSaveTable_bybitUnified(ALL_KEYS_EXCEPT_BYBIT) {
 }
 
 
+
 // 📋 mBank SFI – preload wszystkich wierszy + solidniejsze rozwijanie detali + podatek tylko przy konwersji
 async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -2199,10 +2201,145 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     });
 }
 
+function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
+    const filename = "paribas_export.csv";
+    const headers = [
+        "Data wyceny",
+        "Fundusz docelowy",
+        "Typ transakcji",
+        "Typ oświadczenia/dyspozycji",
+        "Liczba jednostek transakcji",
+        "WANJU dla transakcji"
+    ];
+    const rows = [headers];
+
+    // 🔒 helper LOKALNY (musi być w tej funkcji)
+    function normalizePlAmount(raw) {
+        if (!raw) return "";
+        let s = String(raw);
+        s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+        s = s.replace(/\s+/g, " ").trim();
+        s = s.replace(/[^\d,.\-\s]/g, "");
+        s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+        if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+        s = s.replace(",", ".");
+        return s.trim();
+    }
+
+    const transactions = Array.from(
+        document.querySelectorAll("tr.nx-table-row.table__tr")
+    );
+
+    // 1️⃣ OTWÓRZ SZCZEGÓŁY (klik „Ukryj” = już otwarte)
+    transactions.forEach(tr => {
+        const btn = tr.querySelector("a.nx-button, button.nx-button");
+        const nextRow = tr.nextElementSibling;
+        const opened =
+            nextRow &&
+            nextRow.className.includes("history-table__details") &&
+            nextRow.querySelector("app-transaction-details");
+
+        if (!opened && btn) {
+            const label = btn.textContent.trim();
+            if (label !== "Ukryj") btn.click();
+        }
+    });
+
+    // 2️⃣ POCZEKAJ NA ANGULAR I ZBIERZ DANE
+    setTimeout(() => {
+        transactions.forEach(tr => {
+
+            // 🔹 kolumny Z TABELI (zgodnie z <thead>)
+            const tds = tr.querySelectorAll("td");
+
+            if (tds.length < 6) return;
+
+            // thead:
+            // 0 → Data złożenia
+            // 1 → Typ transakcji
+            // 2 → Typ oświadczenia/dyspozycji
+            // 3 → Jednostki/Wartość
+            // 4 → Fundusz/Produkt
+
+            const typOswiadczenia = tds[2]?.textContent.trim() || "";
+
+            const detailsTr = tr.nextElementSibling;
+            if (!detailsTr) return;
+
+            const details = detailsTr.querySelector("app-transaction-details");
+            if (!details) return;
+
+            const getValue = (label) => {
+                const props = details.querySelectorAll("app-property");
+                for (const p of props) {
+                    const lbl = p.querySelector("span.label");
+                    if (lbl && lbl.textContent.trim() === label) {
+                        const h4 = p.querySelector("h4.ng-star-inserted");
+                        return h4?.textContent.trim() || "";
+                    }
+                }
+                return "";
+            };
+
+            const dataWyceny = getValue("Data wyceny");
+            const fundusz = getValue("Fundusz docelowy");
+            const typTransakcji = getValue("Typ transakcji");
+
+            const liczbaJUraw = getValue("Liczba jednostek transakcji");
+            const wanjuRaw = getValue("WANJU dla transakcji");
+
+            const liczbaJU = normalizePlAmount(liczbaJUraw);
+            const wanju = normalizePlAmount(wanjuRaw);
+
+            rows.push([
+                `"${dataWyceny}"`,
+                `"${fundusz}"`,
+                `"${typTransakcji}"`,
+                `"${typOswiadczenia}"`,
+                liczbaJU,
+                wanju
+            ]);
+        });
+
+        if (rows.length <= 1) {
+            return alert("Brak danych do eksportu.");
+        }
+
+        const csvContent = rows.map(r => r.join(";")).join("\n");
+
+        chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+            chrome.storage.local.set({ [filename]: csvContent }, () => {
+                if (!chrome.runtime.lastError) {
+                    chrome.runtime.sendMessage({ action: "dataSaved" });
+                    chrome.runtime.sendMessage({ action: "checkStorage" });
+                }
+            });
+        });
+
+    }, 1500);
+}
+
+
 
 // 📋 Wyciągnięcie danych z tabeli investors i zapisanie jako CSV
 
 function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
+
+  function normalizePlAmount(raw) {
+    if (raw == null) return "";
+    let s = String(raw);
+    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+    s = s.replace(/\s+/g, " ").trim();
+    s = s.replace(/[^\d,\.\-\s]/g, "");
+    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+    s = s.replace(",", ".");
+    s = s.replace(/(?!^)-/g, "");
+    return s.trim();
+  }
+
+
+
     const filename = "investors_export.csv";
     const headers = [
         "Data wyceny",
@@ -2248,7 +2385,7 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
                     const spanLabel = p.querySelector("span.label");
                     if (spanLabel && spanLabel.textContent.trim() === label) {
                         const value = p.querySelector("p.nx-heading--subsection-xsmall");
-                        return value?.textContent.trim().replace(/\s+/g, " ") || "";
+                        return value?.textContent?.trim() || "";
                     }
                 }
                 return "";
@@ -2261,8 +2398,9 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
             const liczbaJUraw = getValue("Liczba jednostek transakcji");
             const wanjuRaw = getValue("WANJU dla transakcji");
 
-            const liczbaJU = liczbaJUraw.replace(",", ".").match(/[\d.]+/)?.[0] || "";
-            const wanju = wanjuRaw.replace(",", ".").match(/[\d.]+/)?.[0] || "";
+            const liczbaJU = normalizePlAmount(liczbaJUraw);
+            const wanju = normalizePlAmount(wanjuRaw);
+
 
             rows.push([
                 `"${dataWyceny}"`,
@@ -2296,6 +2434,18 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
 // 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV
 
 function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
+  function normalizePlAmount(raw) {
+    if (raw == null) return "";
+    let s = String(raw);
+    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+    s = s.replace(/\s+/g, " ").trim();
+    s = s.replace(/[^\d,\.\-\s]/g, "");
+    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+    s = s.replace(",", ".");
+    s = s.replace(/(?!^)-/g, "");
+    return s.trim();
+  }
     const filename = "santander_export.csv";
     const headers = [
         "Data wyceny",
@@ -2337,7 +2487,8 @@ function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
                 for (const span of labels) {
                     if (span.textContent.trim() === label) {
                         const h4 = span.closest(".nx-grid__row")?.querySelector("h4.ng-star-inserted");
-                        return h4?.textContent.trim().replace(/\s+/g, " ") || "";
+                        return h4?.textContent?.trim() || "";
+
                     }
                 }
                 return "";
@@ -2350,11 +2501,9 @@ function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
             const liczbaJUraw = getValue("Liczba jednostek transakcji");
             const wanjuRaw = getValue("WANJU dla transakcji");
 
-            const cleanValue = (raw) =>
-                raw.replace(/\s/g, "").replace(",", ".").match(/[\d.]+/)?.[0] || "";
+            const liczbaJU = normalizePlAmount(liczbaJUraw);
+            const wanju = normalizePlAmount(wanjuRaw);
 
-            const liczbaJU = cleanValue(liczbaJUraw);
-            const wanju = cleanValue(wanjuRaw);
 
             rows.push([
                 `"${dataWyceny}"`,
@@ -2390,6 +2539,18 @@ function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
 // 📋 Wyciągnięcie danych z tabeli milenium i zapisanie jako CSV
 
 function extractAndSaveTable_milenium(STORAGE_KEYS_ALL) {
+  function normalizePlAmount(raw) {
+    if (raw == null) return "";
+    let s = String(raw);
+    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+    s = s.replace(/\s+/g, " ").trim();
+    s = s.replace(/[^\d,\.\-\s]/g, "");
+    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+    s = s.replace(",", ".");
+    s = s.replace(/(?!^)-/g, "");
+    return s.trim();
+  }
     const filename = "milenium_export.csv";
     const headers = [
         "Data wyceny",
@@ -2431,7 +2592,8 @@ function extractAndSaveTable_milenium(STORAGE_KEYS_ALL) {
                 for (const span of labels) {
                     if (span.textContent.trim() === label) {
                         const h4 = span.closest(".nx-grid__row")?.querySelector("h4.ng-star-inserted");
-                        return h4?.textContent.trim().replace(/\s+/g, " ") || "";
+                        return h4?.textContent?.trim() || "";
+
                     }
                 }
                 return "";
@@ -2444,8 +2606,9 @@ function extractAndSaveTable_milenium(STORAGE_KEYS_ALL) {
             const liczbaJUraw = getValue("Liczba jednostek transakcji");
             const wanjuRaw = getValue("WANJU dla transakcji");
 
-            const liczbaJU = liczbaJUraw.replace(",", ".").replace(/[^\d.]/g, "");
-            const wanju = wanjuRaw.replace(",", ".").replace(/[^\d.]/g, "");
+            const liczbaJU = normalizePlAmount(liczbaJUraw);
+            const wanju = normalizePlAmount(wanjuRaw);
+
 
             rows.push([
                 `"${dataWyceny}"`,
@@ -2574,6 +2737,18 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
 // 📋 Wyciągnięcie danych z tabel Noble i zapisanie jako CSV
 
 function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
+  function normalizePlAmount(raw) {
+    if (raw == null) return "";
+    let s = String(raw);
+    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+    s = s.replace(/\s+/g, " ").trim();
+    s = s.replace(/[^\d,\.\-\s]/g, "");
+    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+    s = s.replace(",", ".");
+    s = s.replace(/(?!^)-/g, "");
+    return s.trim();
+  }
     const filename = "noble_export.csv";
     const headers = [
         "Data",
@@ -2589,39 +2764,47 @@ function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
     const rows = [headers];
 
     const parseNumber = (text) => {
-        if (!text) return "";
-        const cleaned = String(text).trim()
-            .replace(/\u00a0/g, "") // NBSP
-            .replace(/\s/g, "") // zwykłe spacje
-            .replace(",", ".")
-            .replace(/[^\d.-]/g, "");
-        const num = parseFloat(cleaned);
-        return isNaN(num) ? "" : num;
-    };
+    const normalized = normalizePlAmount(text);
+    if (!normalized) return "";
+    const num = parseFloat(normalized);
+    return Number.isFinite(num) ? num : "";
+};
+
 
     // Dostosowane do nowego HTML:
     //  - wartość jest w 1. węźle tekstowym TD
     //  - waluta (np. PLN) w <span class="col-text-addon">
     const getValueWithCurrency = (td) => {
-        if (!td) return "";
-        const rawVal =
-            (td.childNodes && td.childNodes[0] && td.childNodes[0].textContent) ?
-            td.childNodes[0].textContent : td.textContent;
-        const val = String(rawVal).trim().replace(/\u00a0/g, " ").replace(/\s+/g, " ");
-        const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
-        if (!currency) {
-            // fallback do starego wzorca "10 005,60 PLN"
-            const match = val.match(/^([\d\s.,-]+)\s*(\w+)$/);
-            if (match) {
-                const numeric = match[1].replace(/\s/g, "").replace(",", ".");
-                return `${numeric} ${match[2]}`;
-            }
-            // albo surowy tekst jeśli bez waluty
-            return val;
-        }
-        const numeric = val.replace(/\s/g, "").replace(",", ".");
-        return `${numeric} ${currency}`;
-    };
+    if (!td) return "";
+
+    const rawVal =
+        (td.childNodes && td.childNodes[0] && td.childNodes[0].textContent)
+            ? td.childNodes[0].textContent
+            : td.textContent;
+
+    const text = (rawVal ?? "").toString().trim();
+    const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
+
+    // Jeśli mamy osobno walutę w addon – czyścimy tylko część liczbową normalizePlAmount
+    if (currency) {
+        const numeric = normalizePlAmount(text);
+        return numeric ? `${numeric} ${currency}` : currency;
+    }
+
+    // Fallback: stary wzorzec "10 005,60 PLN" w jednym stringu
+    // Wyciągamy walutę z końcówki, a liczbę normalizujemy helperem
+    const m = text.match(/^(.*?)[\s\u00A0\u202F]*([A-Za-z]{2,5})\s*$/);
+    if (m) {
+        const numeric = normalizePlAmount(m[1]);
+        const cur = m[2];
+        return numeric ? `${numeric} ${cur}` : cur;
+    }
+
+    // Jeśli nie ma waluty – zwróć tekst (albo samą liczbę, jeśli chcesz)
+    const numericOnly = normalizePlAmount(text);
+    return numericOnly || text;
+};
+
 
     // 1) Kliknij wszystkie przyciski w kolumnie szczegółów, jeśli ich tekst ≠ "Zamknij"
     const buttons = Array.from(document.querySelectorAll("td.col-show-instrument-history button"));
@@ -2803,7 +2986,13 @@ function bybit_extract_depositSpot() {
         const header = hasHeader ? lines.shift() : HEADER;
 
         // tu dalej Twoja istniejąca logika filtrowania Funding;
-        const kept = lines.filter((l) => !/^Funding;/i.test(l.trim()));
+        const kept = lines.filter((l) => {
+  const cols = l.split(";");
+  const source = (cols[1] || "").trim();
+  return !/^Funding_/i.test(source);     // usuń wszystkie Funding_*
+  // albo wężej: return source !== SOURCE; // tylko dany extractor
+});
+
 
         const existingSet = new Set(kept.map(norm));
 
