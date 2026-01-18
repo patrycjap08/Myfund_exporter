@@ -595,7 +595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportPrzeplywowCrypto&_mrid=284&sourcePlugin=Finax", "_blank");
                         actionContainer.appendChild(btn);
                     }
-                    if (tabUrl.includes("raport=ImportOperacji") && !tabUrl.includes("raport=ImportOperacjiPPK")) {
+                    if (data["finax_transakcje.csv"] && !tabUrl.includes("raport=ImportOperacji")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
                         btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
