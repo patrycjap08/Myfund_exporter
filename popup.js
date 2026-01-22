@@ -2213,7 +2213,6 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
     ];
     const rows = [headers];
 
-    // 🔒 helper LOKALNY (musi być w tej funkcji)
     function normalizePlAmount(raw) {
         if (!raw) return "";
         let s = String(raw);
@@ -2230,76 +2229,68 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
         document.querySelectorAll("tr.nx-table-row.table__tr")
     );
 
-    // 1️⃣ OTWÓRZ SZCZEGÓŁY (klik „Ukryj” = już otwarte)
+    // 1️⃣ OTWÓRZ SZCZEGÓŁY (jeśli trzeba)
     transactions.forEach(tr => {
-        const btn = tr.querySelector("a.nx-button, button.nx-button");
-        const nextRow = tr.nextElementSibling;
-        const opened =
-            nextRow &&
-            nextRow.className.includes("history-table__details") &&
-            nextRow.querySelector("app-transaction-details");
+        const btn = tr.querySelector("button.nx-button, a.nx-button");
+        if (!btn) return;
 
-        if (!opened && btn) {
-            const label = btn.textContent.trim();
-            if (label !== "Ukryj") btn.click();
+        const label = btn.textContent.trim().toLowerCase();
+
+        // jeżeli NIE jest „Ukryj”, to znaczy że szczegóły są zamknięte
+        if (!label.includes("ukryj")) {
+            btn.click();
         }
     });
 
-    // 2️⃣ POCZEKAJ NA ANGULAR I ZBIERZ DANE
+    // 2️⃣ CZEKAJ NA ANGULAR
     setTimeout(() => {
+
         transactions.forEach(tr => {
+    const tds = tr.querySelectorAll("td");
 
-            // 🔹 kolumny Z TABELI (zgodnie z <thead>)
-            const tds = tr.querySelectorAll("td");
+    const typOswiadczenia =
+        tds[2]?.querySelector("span")?.textContent.trim() || "";
 
-            if (tds.length < 6) return;
+    const detailsTr = tr.nextElementSibling;
+    if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) {
+        return;
+    }
 
-            // thead:
-            // 0 → Data złożenia
-            // 1 → Typ transakcji
-            // 2 → Typ oświadczenia/dyspozycji
-            // 3 → Jednostki/Wartość
-            // 4 → Fundusz/Produkt
+    const details = detailsTr.querySelector("app-transaction-details");
 
-            const typOswiadczenia = tds[2]?.textContent.trim() || "";
+    const getValue = (label) => {
+        const props = details.querySelectorAll("app-property");
+        for (const p of props) {
+            const lbl = p.querySelector("span.label");
+            const val = p.querySelector("p");
+            if (lbl && val && lbl.textContent.trim() === label) {
+                return val.textContent.trim();
+            }
+        }
+        return "";
+    };
 
-            const detailsTr = tr.nextElementSibling;
-            if (!detailsTr) return;
+    const dataWyceny = getValue("Data wyceny");
+    const fundusz = getValue("Fundusz docelowy");
+    const typTransakcji = getValue("Typ transakcji");
 
-            const details = detailsTr.querySelector("app-transaction-details");
-            if (!details) return;
+    const liczbaJU = normalizePlAmount(
+        getValue("Liczba jednostek transakcji")
+    );
+    const wanju = normalizePlAmount(
+        getValue("WANJU dla transakcji")
+    );
 
-            const getValue = (label) => {
-                const props = details.querySelectorAll("app-property");
-                for (const p of props) {
-                    const lbl = p.querySelector("span.label");
-                    if (lbl && lbl.textContent.trim() === label) {
-                        const h4 = p.querySelector("h4.ng-star-inserted");
-                        return h4?.textContent.trim() || "";
-                    }
-                }
-                return "";
-            };
+    rows.push([
+        `"${dataWyceny}"`,
+        `"${fundusz}"`,
+        `"${typTransakcji}"`,
+        `"${typOswiadczenia}"`,
+        liczbaJU,
+        wanju
+    ]);
+});
 
-            const dataWyceny = getValue("Data wyceny");
-            const fundusz = getValue("Fundusz docelowy");
-            const typTransakcji = getValue("Typ transakcji");
-
-            const liczbaJUraw = getValue("Liczba jednostek transakcji");
-            const wanjuRaw = getValue("WANJU dla transakcji");
-
-            const liczbaJU = normalizePlAmount(liczbaJUraw);
-            const wanju = normalizePlAmount(wanjuRaw);
-
-            rows.push([
-                `"${dataWyceny}"`,
-                `"${fundusz}"`,
-                `"${typTransakcji}"`,
-                `"${typOswiadczenia}"`,
-                liczbaJU,
-                wanju
-            ]);
-        });
 
         if (rows.length <= 1) {
             return alert("Brak danych do eksportu.");
@@ -2309,16 +2300,13 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
 
         chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
             chrome.storage.local.set({ [filename]: csvContent }, () => {
-                if (!chrome.runtime.lastError) {
-                    chrome.runtime.sendMessage({ action: "dataSaved" });
-                    chrome.runtime.sendMessage({ action: "checkStorage" });
-                }
+                chrome.runtime.sendMessage({ action: "dataSaved" });
+                chrome.runtime.sendMessage({ action: "checkStorage" });
             });
         });
 
     }, 1500);
 }
-
 
 
 // 📋 Wyciągnięcie danych z tabeli investors i zapisanie jako CSV
