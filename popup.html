@@ -15,43 +15,23 @@
             --Neutral900: #020E1F;
         }
 
-        body {
-            width: 360px;
-            height: 490px;
-            font-family: sans-serif;
-            margin: 0;
-            padding: 10px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-        }
+        html, body {
+    margin: 0;
+    padding: 0;
+    width: 360px;
+    height: 100%;
+    overflow: hidden; /* tylko .content-section będzie scrollować */
+    box-sizing: border-box;
+}
 
-        .top-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #fff;
+}
 
-        .content-section {
-            flex: 1;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-y: auto;
-            margin-top: 10px;
-        }
-
-        #bottomIcons {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            /* <-- tutaj ustawiasz odstęp między ikonami */
-            margin-top: auto;
-        }
 
         .icon {
             width: 55px;
@@ -80,6 +60,8 @@
         }
 
         #grayBoxa,
+        #bybitInfoBox,
+        #bybitExtendedInfo,
         #instructionsBoxa,
         #instructionsBoxb,
         #grayBoxb {
@@ -195,6 +177,14 @@
             display: none;
         }
 
+        .BUTTON:disabled,
+        #bybitFundingBtn:disabled,
+        #bybitUnifiedBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
         .BUTTON:hover,
         #exportBtn:hover {
             background-color: var(--Neutral800);
@@ -205,24 +195,26 @@
         }
 
         .tooltip-text {
-  position: fixed; /* <- kluczowe */
-  left: 50%;
-  bottom: 75px; /* tuż nad ikoną (dostosuj w razie potrzeby) */
-  transform: translateX(-50%);
-  background-color: #333;
-  color: #fff;
-  text-align: left;
-  padding: 10px;
-  border-radius: 5px;
-  font-size: 12px;
-  width: 300px;
-  max-width: 90%;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.3s;
-  z-index: 999;
-  white-space: normal;
-}
+            position: fixed;
+            /* <- kluczowe */
+            left: 50%;
+            bottom: 75px;
+            /* tuż nad ikoną (dostosuj w razie potrzeby) */
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            width: 300px;
+            max-width: 90%;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 999;
+            white-space: normal;
+        }
 
 
         .tooltip-text a {
@@ -236,22 +228,32 @@
             /* np. złoty po najechaniu – możesz zmienić na inny */
         }
 
-        .tooltip-container:hover .tooltip-text,
-        .tooltip-text:hover {
-            visibility: visible;
-            opacity: 1;
-        }
+        .tooltip-container {
+    display: inline-block;
+    position: relative; /* DODANE */
+}
 
-        .tooltip-text::after {
-            content: "";
-            display: block;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            height: 20px;
-            /* obszar łapania myszy */
-        }
+.tooltip-text {
+    position: absolute;           /* BYŁO fixed */
+    left: 50%;
+    bottom: 75px;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    text-align: left;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    width: 300px;
+    max-width: 90%;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 999;
+    white-space: normal;
+}
+
+        
 
         .mini-icon {
             width: 30px;
@@ -269,40 +271,67 @@
             opacity: 1;
         }
 
-.trash-tooltip {
-  position: absolute;
-  top: 50%;
-  right: 100%;
-  transform: translateY(-50%);
-  margin-right: 8px;
-  background-color: #333;
-  color: #fff;
-  white-space: nowrap;
-  padding: 6px 10px;
-  border-radius: 5px;
-  font-size: 12px;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 1000;
+        .trash-tooltip {
+            position: absolute;
+            top: 50%;
+            right: 100%;
+            transform: translateY(-50%);
+            margin-right: 8px;
+            background-color: #333;
+            color: #fff;
+            white-space: nowrap;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+        }
+
+
+        /* Stały pasek na dole */
+        #bottomBar {
+          
+    height: 70px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #fff;
+    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    height: 70px;
+    z-index: 1000;
+
+    padding: 4px 0;
+    box-sizing: border-box;
 }
 
 
-#clearDataContainer:hover .trash-tooltip {
-  visibility: visible;
-  opacity: 1;
-}
+        /* Wyrównanie ikon w poziomie */
+        #bottomIcons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 25px;
+            /* odległość między ikonami */
+            width: auto;
+            /* dopasowane do zawartości, nie 100% */
+        }
 
-#clearDataContainer {
-  position: fixed;
-  bottom: 15px;
-  right: 10px;
-  z-index: 999;
-}
+        /* Kosz — pod ikonami, nie fixed */
+        #clearDataContainer {
+            position: relative;
+            margin-top: 2px;
+        }
 
-
-
-
+        /* Dodatkowy margines, żeby treść nie chowała się pod paskiem */
+    
 
 
 
@@ -311,6 +340,52 @@
             left: auto;
             right: 0;
         }
+
+        .top-section {
+          
+    height: 200px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1000;
+    padding-top: 10px;
+    padding-bottom: 5px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+
+    height: 200px;
+    box-sizing: border-box;
+}
+
+        .content-section {
+    position: absolute;
+    top: 200px;   /* = wysokość top-section */
+    left: 0;
+    right: 0;
+    bottom: 70px; /* = wysokość bottomBar */
+
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 10px;
+    padding-bottom: 10px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    overflow-y: auto;
+    scrollbar-gutter: stable both-edges;
+}
+
+body::-webkit-scrollbar {
+    display: none;
+}
+
     </style>
 </head>
 
@@ -330,42 +405,125 @@
         <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
         <div id="dateWarningBox"><b>Upewnij się, że wybrałeś odpowiedni zakres dat.</b></div>
         <button id="exportBtn">📥 Pobierz dane</button>
-<!--
-        <button id="downloadStoredBtn" style="display: none;">⬇️ Pobierz zapisany plik</button>
--->
+        <!-- BYBIT: pytanie o zakres > 90 dni -->
+        <!-- BYBIT: pytanie o zakres > 90 dni (WYŁĄCZONE - nic nie będzie wyświetlane) -->
+        <div id="bybitQuestionInner" style="display:none;">
+            <div style="font-size:12px; line-height:1.4; margin-bottom:8px; background:#F1F1F5; border-radius:6px; padding:8px 10px;">
+                <p><b>❓ Czy chcesz zaimportować dane z konta Funding z okresu dłuższego niż 90 dni?</b></p>
+                <div style="display:flex; gap:8px;">
+                    <button id="bybitAnsYes" class="BUTTON" style="display:block; flex:1;">Tak</button>
+                    <button id="bybitAnsNo" class="BUTTON" style="display:block; flex:1;">Nie</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- BYBIT: tryb rozszerzony (będzie domyślnie używany) -->
+        <div id="bybitExtendedInfo" style="display:none; margin-top:8px;" class="bybit-box">
+            <b>Jak pobrać dane z Bybit</b><br>
+            <p>Zakładka <b>All Transactions</b> dla <b>konta Funding Account</b> pokazuje pełne dane tylko dla ostatnich <b>90 dni</b>, dlatego starsze operacje trzeba pobrać osobno z konkretnych sekcji (Deposit, Withdraw, P2P, One-Click Buy itd.) w zakładce History.
+                Poniższe przyciski zbierają te dane i łączą je w jeden plik do importu w MyFund.</p>
+
+            <p><b>1️⃣ Funding Account</b> – przejdź do:
+                <b>Assets → Funding Account → History → zakładka History</b>.<br>
+                Wejdź do konkretnej <b>sekcji</b> (np. Deposit, Withdraw, P2P itp.) – wtedy jeden z przycisków poniżej stanie się aktywny.
+                Następnie wybierz zakres dat i pobierz dane. Możesz powtarzać proces dla dowolnej liczby sekcji.
+            </p>
+
+            <div style="background:#fff8e5; border-left:4px solid #f1c232; padding:6px 10px; border-radius:6px; margin:8px 0;">
+                <b>⚠️ Uwaga:</b><br>
+                Dane z kolejnych sekcji są <b>dodawane</b> do zbioru przeznaczonego do importu.</b><br>
+                Wtyczka dba aby pobierane rekordy nie duplikowały się.</b><br>
+                Jeżeli pobrałeś zbyt dużo danych możesz usunąć je pojedyńczo w MyFund lub skasować wszystkie zapisane do tej pory rekordy z Bybit klikając w ikonke kosza i zacząć ich pobieranie od nowa.<br>
+            </div>
+
+            <p><b>2️⃣ Unified Trading Account</b> – przejdź do:
+                <b>Assets → Unified Trading Account → History Records → Transaction Log</b>, wybierz zakres dat i pobierz dane.
+            </p>
+
+            <div style="background:#eef6ff; border-left:4px solid #2f75e0; padding:6px 10px; border-radius:6px; margin:8px 0;">
+                <b>ℹ️ Wskazówka:</b><br>
+                Możesz zaimportować dane tylko z jednego konta – <b>Funding</b> lub <b>Unified</b>.
+                Upewnij się jednak, że transakcje z drugiego konta zostały już wcześniej wczytane do MyFund.
+            </div>
+
+        </div>
+
+        <div id="bybitExtendedBtns" style="display:none;">
+            <button id="bybitDepositSpotBtn" class="BUTTON">Pobierz dane z sekcji Deposit (krypto)</button>
+            <button id="bybitWithdrawSpotBtn" class="BUTTON">Pobierz dane z sekcji Withdraw (krypto)</button>
+            <button id="bybitOneClickBuyBtn" class="BUTTON">Pobierz dane z sekcji One-Click Buy</button>
+            <button id="bybitP2PBtn" class="BUTTON">Pobierz dane z sekcji P2P</button>
+            <button id="bybitDepositFiatBtn" class="BUTTON">Pobierz dane z sekcji Deposit Fiat</button>
+            <button id="bybitWithdrawFiatBtn" class="BUTTON">Pobierz dane z sekcji Withdraw Fiat</button>
+        </div>
+
+        <div id="bybitInfoBox" style="display:none;" class="bybit-box">
+            <b>Import z Bybit przewiduje wykonanie 2 kroków:</b><br><br>
+            <p><b>1️⃣ Funding Account</b> – przejdź do:
+                <b>Assets → Funding Account → History → zakładka All Transactions</b>.
+                Wybierz zakres dat i kliknij <b>„Pobierz dane”</b>.
+            </p>
+
+            <p><b>2️⃣ Unified Trading Account</b> – przejdź do:
+                <b>Assets → Unified Trading Account → History Records → Transaction Log</b>.
+                Wybierz zakres dat i kliknij <b>„Pobierz dane”</b>.
+            </p>
+
+            <div style="background:#fff8e5; border-left:4px solid #f1c232; padding:6px 10px; border-radius:6px; margin:8px 0;">
+                <b>⚠️ Uwaga:</b><br>
+                Jeśli pobrałaś już transakcje z zakładki <b>History</b>, pobranie danych z zakładki <b>All Transactions</b> spowoduje ich <b>nadpisanie</b>.<br>
+                Natomiast jeśli wcześniej pobierałaś dane z <b>Unified Trading Account</b>, pobranie nowych danych z <b>Funding Account</b> <b>nie usunie</b> tamtych zapisów.
+            </div>
+
+            <div style="background:#eef6ff; border-left:4px solid #2f75e0; padding:6px 10px; border-radius:6px; margin:8px 0;">
+                <b>ℹ️ Wskazówka:</b><br>
+                Możesz zaimportować dane tylko z jednego konta – <b>Funding</b> lub <b>Unified</b>.
+                Upewnij się jednak, że transakcje z drugiego konta zostały już wcześniej wczytane do MyFund.
+            </div>
+
+            <p>Po pobraniu danych wtyczka automatycznie <b>przekieruje Cię do MyFund</b>, gdzie wkleisz kompletny zestaw transakcji.</p>
+        </div>
+
+        <button id="bybitFundingBtn" class="BUTTON" style="display:none;">
+            Pobierz dane z Funding Account
+        </button>
+        <button id="bybitUnifiedBtn" class="BUTTON" style="display:none;">
+            Pobierz dane z Unified Trading Account
+        </button>
+
         <div id="warning"></div>
         <div id="actionContainer"></div>
-    </div>
+    </div> <!-- <-- to zamyka .content-section -->
 
-    <div id="bottomIcons">
-        <img id="myfundIcon" class="icon" src="icon.png" title="MyFund">
-        <img id="finaxIcon" class="icon" src="finax-icon.png" title="Finax" style="display: none;">
-        <img id="mbankIcon" class="icon" src="mbank_icon.png" title="mBank" style="display: none;">
-        <img id="paribasIcon" class="icon" src="paribas_icon.png" title="BNP Paribas" style="display: none;">
-        <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
-        <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
-        <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
-        <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
 
-        <!-- WŁASNY TOOLTIP JAKO OSTATNIA IKONA -->
-        <div class="tooltip-container">
-            <img class="icon" src="info-icon.png" id="customInfoIcon">
-            <span class="tooltip-text">
-                Wejdź na stronę jednej z obsługiwanych platform (Finax, mBank, BNP Paribas, Investors, Santander, Millenium, Noble Securities) i otwórz wtyczkę.<br>
-                Na podstronie z operacjami kliknij „Pobierz dane”, aby zapisać je tymczasowo w pamięci przeglądarki.
-                Wtyczka przekieruje cię do odpowiedniej podstrony MyFund.<br>
-                Wybierz portfel, otwórz ponownie wtyczkę i kliknij:
-                „Wklej pobrane transakcje” lub „Wklej pobrane operacje” – zależnie od typu danych.<br><br>
-                Więcej informacji znajdziesz na forum w wątkach dotyczących importu z
-                <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5332" target="_blank">Finax</a> oraz
-                <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5346" target="_blank">mBank</a>.
-            </span>
+
+    <div id="bottomBar">
+        <div id="bottomIcons">
+            <img id="myfundIcon" class="icon" src="icon.png" title="MyFund">
+            <img id="finaxIcon" class="icon" src="finax-icon.png" title="Finax" style="display: none;">
+            <img id="mbankIcon" class="icon" src="mbank_icon.png" title="mBank" style="display: none;">
+            <img id="paribasIcon" class="icon" src="paribas_icon.png" title="BNP Paribas" style="display: none;">
+            <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
+            <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
+            <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
+            <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
+            <img id="bybitIcon" class="icon" src="bybit_icon.png" title="Bybit" style="display: none;">
+
+            <div class="tooltip-container">
+                <img class="icon" src="info-icon.png" id="customInfoIcon">
+                <span class="tooltip-text">
+                    Wejdź na stronę jednej z obsługiwanych platform (...).
+                </span>
+            </div>
+        </div>
+
+        <div id="clearDataContainer" class="tooltip-container">
+            <span class="trash-tooltip">Usuń dane z pamięci przeglądarki</span>
+            <img id="clearDataIcon" class="mini-icon" src="trash_dark.svg" title="">
         </div>
     </div>
-<div id="clearDataContainer" class="tooltip-container">
-  <span class="trash-tooltip">Usuń dane z pamięci przeglądarki</span>
-  <img id="clearDataIcon" class="mini-icon" src="trash_dark.svg" title="">
-</div>
+
 
 
 

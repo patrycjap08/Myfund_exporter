@@ -18,7 +18,8 @@
     "https://millenniumtfi.sti24.pl/*",
     "https://online24.investors.pl/*",
     "https://online.santander-ppk.pl/*",
-    "https://mynsapp.noblesecurities.pl/*"
+    "https://mynsapp.noblesecurities.pl/*",
+    "https://*.bybit.com/*"           
     ],
     "background": {
       "service_worker": "background.js"
@@ -35,7 +36,8 @@
       "https://millenniumtfi.sti24.pl/*",
       "https://online24.investors.pl/*",
       "https://online.santander-ppk.pl/*",
-      "https://mynsapp.noblesecurities.pl/*"
+      "https://mynsapp.noblesecurities.pl/*",
+      "https://*.bybit.com/*"
     ],
     "js": ["content.js"]
   }
