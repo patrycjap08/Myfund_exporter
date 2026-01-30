@@ -2420,7 +2420,7 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
 
 
 // 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV
-
+// 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV  (NOWA WERSJA jak Paribas)
 function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
   function normalizePlAmount(raw) {
     if (raw == null) return "";
@@ -2434,95 +2434,132 @@ function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
     s = s.replace(/(?!^)-/g, "");
     return s.trim();
   }
-    const filename = "santander_export.csv";
-    const headers = [
-        "Data wyceny",
-        "Fundusz docelowy",
-        "Typ transakcji",
-        "Typ oświadczenia/dyspozycji",
-        "Liczba jednostek transakcji",
-        "WANJU dla transakcji"
-    ];
-    const rows = [headers];
 
-    const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
+  const filename = "santander_export.csv";
+  const headers = [
+    "Data wyceny",
+    "Fundusz docelowy",
+    "Typ transakcji",
+    "Typ oświadczenia/dyspozycji",
+    "Liczba jednostek transakcji",
+    "WANJU dla transakcji"
+  ];
+  const rows = [headers];
 
-    // 1. Klikamy tylko, jeśli szczegóły nie są jeszcze widoczne
-    transactions.forEach(tr => {
-        const toggleBtn = tr.querySelector("a.nx-button");
-        const nextRow = tr.nextElementSibling;
-        const detailsAreVisible = nextRow?.classList.contains("nx-table-row__details");
+  const transactions = Array.from(
+    document.querySelectorAll("tr.nx-table-row.table__tr")
+  );
 
-        if (toggleBtn && !detailsAreVisible) {
-            toggleBtn.click();
-        } else if (!toggleBtn && !detailsAreVisible) {
-            tr.dispatchEvent(new MouseEvent("click", {
-                bubbles: true
-            }));
+  // helper: czy następny wiersz wygląda jak szczegóły
+  const isDetailsRow = (tr) => {
+    if (!tr) return false;
+    // różne warianty na sti24
+    if (tr.classList?.contains("nx-table-row__details")) return true;
+    if ((tr.className || "").includes("history-table__details")) return true;
+    if (tr.querySelector?.("app-transaction-details")) return true;
+    if (tr.querySelector?.("app-property")) return true;
+    return false;
+  };
+
+  // helper: klik otwierający szczegóły (różne warianty przycisków)
+  const openDetails = (tr) => {
+    const toggleBtn =
+      tr.querySelector("button.nx-button--tertiary") ||
+      tr.querySelector("button.nx-button") ||
+      tr.querySelector("a.nx-button--tertiary") ||
+      tr.querySelector("a.nx-button");
+    if (toggleBtn) {
+      toggleBtn.click();
+      return;
+    }
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  };
+
+  // 1) Otwórz szczegóły tylko jeśli nie są widoczne
+  transactions.forEach((tr) => {
+    const nextRow = tr.nextElementSibling;
+    const detailsVisible = isDetailsRow(nextRow);
+
+    if (!detailsVisible) openDetails(tr);
+  });
+
+  // 2) Poczekaj aż Angular doładuje DOM
+  setTimeout(() => {
+    transactions.forEach((tr) => {
+      // "Typ oświadczenia/dyspozycji" w tabeli głównej (kolumna 3)
+      const typOswiadczenia =
+        tr.querySelector("td:nth-child(3) span")?.textContent?.trim() ||
+        tr.querySelector("td:nth-child(3)")?.textContent?.trim() ||
+        "";
+
+      const detailsTr = tr.nextElementSibling;
+      if (!isDetailsRow(detailsTr)) return;
+
+      // kontener szczegółów (czasem siedzi w app-transaction-details)
+      const detailsRoot =
+        detailsTr.querySelector("app-transaction-details") || detailsTr;
+
+      // ✅ NOWA logika jak Paribas: app-property -> span.label + (p / h4 / cokolwiek tekstowego)
+      const getValue = (label) => {
+        const props = detailsRoot.querySelectorAll("app-property");
+        for (const p of props) {
+          const lbl = p.querySelector("span.label");
+          if (!lbl) continue;
+
+          const lblTxt = lbl.textContent?.trim() || "";
+          if (lblTxt !== label) continue;
+
+          // Paribas: <p>
+          const pVal =
+            p.querySelector("p")?.textContent?.trim() ||
+            // Investors: <p class="nx-heading--subsection-xsmall">
+            p.querySelector("p.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+            // Santander (stare UI): <h4 class="ng-star-inserted">
+            p.querySelector("h4.ng-star-inserted")?.textContent?.trim() ||
+            // fallback: dowolny element tekstowy obok
+            p.textContent?.replace(lblTxt, "").trim() ||
+            "";
+
+          return pVal;
         }
+        return "";
+      };
+
+      const dataWyceny = getValue("Data wyceny");
+      const fundusz = getValue("Fundusz docelowy");
+      const typTransakcji = getValue("Typ transakcji");
+
+      const liczbaJUraw = getValue("Liczba jednostek transakcji");
+      const wanjuRaw = getValue("WANJU dla transakcji");
+
+      const liczbaJU = normalizePlAmount(liczbaJUraw);
+      const wanju = normalizePlAmount(wanjuRaw);
+
+      rows.push([
+        `"${dataWyceny}"`,
+        `"${fundusz}"`,
+        `"${typTransakcji}"`,
+        `"${typOswiadczenia}"`,
+        liczbaJU,
+        wanju
+      ]);
     });
 
-    // 2. Poczekaj, aż wszystkie szczegóły się pojawią
-    setTimeout(() => {
-        transactions.forEach(tr => {
-            const typOswiadczenia = tr.children[2]?.textContent.trim() || "";
+    if (rows.length <= 1) return alert("Brak danych do eksportu.");
 
-            const detailsTr = tr.nextElementSibling;
-            if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) return;
+    const csvContent = rows.map((row) => row.join(";")).join("\n");
 
-            const getValue = (label) => {
-                const labels = detailsTr.querySelectorAll("span.label");
-                for (const span of labels) {
-                    if (span.textContent.trim() === label) {
-                        const h4 = span.closest(".nx-grid__row")?.querySelector("h4.ng-star-inserted");
-                        return h4?.textContent?.trim() || "";
-
-                    }
-                }
-                return "";
-            };
-
-            const dataWyceny = getValue("Data wyceny");
-            const fundusz = getValue("Fundusz docelowy");
-            const typTransakcji = getValue("Typ transakcji");
-
-            const liczbaJUraw = getValue("Liczba jednostek transakcji");
-            const wanjuRaw = getValue("WANJU dla transakcji");
-
-            const liczbaJU = normalizePlAmount(liczbaJUraw);
-            const wanju = normalizePlAmount(wanjuRaw);
-
-
-            rows.push([
-                `"${dataWyceny}"`,
-                `"${fundusz}"`,
-                `"${typTransakcji}"`,
-                `"${typOswiadczenia}"`,
-                liczbaJU,
-                wanju
-            ]);
-        });
-
-        if (rows.length <= 1) return alert("Brak danych do eksportu.");
-
-        const csvContent = rows.map(row => row.join(";")).join("\n");
-
-        chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
-            chrome.storage.local.set({
-                [filename]: csvContent
-            }, () => {
-                if (!chrome.runtime.lastError) {
-                    chrome.runtime.sendMessage({
-                        action: "dataSaved"
-                    });
-                    chrome.runtime.sendMessage({
-                        action: "checkStorage"
-                    });
-                }
-            });
-        });
-    }, 1000); // 1 sekunda opóźnienia — można zwiększyć przy wolnym internecie
+    chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+      chrome.storage.local.set({ [filename]: csvContent }, () => {
+        if (!chrome.runtime.lastError) {
+          chrome.runtime.sendMessage({ action: "dataSaved" });
+          chrome.runtime.sendMessage({ action: "checkStorage" });
+        }
+      });
+    });
+  }, 1500); // jak w Paribas/Investors — bezpieczniej niż 1000ms
 }
+
 
 // 📋 Wyciągnięcie danych z tabeli milenium i zapisanie jako CSV
 
