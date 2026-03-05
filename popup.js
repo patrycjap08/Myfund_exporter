@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
         "investors_export.csv",
         "santander_export.csv",
         "noble_export.csv",
-        "bybit_export.csv"
+        "bybit_export.csv",
+        "pekao_ikze_export.csv"
     ],
     EXCEPT_BYBIT: [
         "finax_transakcje.csv",
@@ -23,7 +24,8 @@ const STORAGE_KEYS = {
         "milenium_export.csv",
         "investors_export.csv",
         "santander_export.csv",
-        "noble_export.csv"
+        "noble_export.csv",
+        "pekao_ikze_export.csv"
     ]
 };
 document.addEventListener("DOMContentLoaded", async () => {
@@ -153,6 +155,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tryClick.attempts = 0;
         setTimeout(tryClick, 300); // pierwszy strzał
     }
+
     function insertTransactions_bybit(csvContent) {
         const select = document.querySelector('select#bank');
         if (select) {
@@ -503,7 +506,54 @@ document.addEventListener("DOMContentLoaded", async () => {
         tryClick.attempts = 0;
         setTimeout(tryClick, 300); // pierwszy strzał
     }
+    // ===================== MYFUND IMPORT: PEKAO IKZE =====================
+function insertTransactions_pekao(csvContent) {
+    const select = document.querySelector('select#bank');
+    if (select) {
+        select.value = 'PekaoTFI';
+        select.dispatchEvent(new Event('change', {
+            bubbles: true
+        }));
+    }
 
+    const csvBlob = new Blob([csvContent], {
+        type: 'text/csv'
+    });
+    const file = new File([csvBlob], "pekao_ikze_export.csv", {
+        type: "text/csv"
+    });
+
+    const input = document.querySelector('input[type="file"]#imagefile');
+    if (!input) {
+        alert("Nie znaleziono pola do przesłania pliku.");
+        return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event('change', {
+        bubbles: true
+    }));
+
+    // klik "Pobierz z pliku"
+    const tryClick = () => {
+        const submitButton = document.querySelector('#submit1');
+        if (submitButton) {
+            submitButton.click();
+        } else {
+            if (tryClick.attempts < 5) {
+                tryClick.attempts++;
+                setTimeout(tryClick, 200);
+            } else {
+                alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+            }
+        }
+    };
+
+    tryClick.attempts = 0;
+    setTimeout(tryClick, 300);
+}
     // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
     function updateActionButtons() {
@@ -522,7 +572,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 "investors_export.csv",
                 "santander_export.csv",
                 "noble_export.csv",
-                "bybit_export.csv"
+                "bybit_export.csv",
+                "pekao_ikze_export.csv"
             ], (data) => {
                 actionContainer.innerHTML = "";
 
@@ -530,7 +581,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
                     warningContainer.style.display = "block";
                 }
-                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund")) {
+                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24")) {
                     if (data["bybit_export.csv"] && !tabUrl.includes("sourcePlugin=ByBitWtyczka")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
@@ -603,6 +654,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                         btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=Finax", "_blank");
                         actionContainer.appendChild(btn);
                     }
+                    if (data["pekao_ikze_export.csv"] && !tabUrl.includes("raport=ImportOperacji")) {
+                        const btn = document.createElement("button");
+                        btn.className = "BUTTON";
+                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
+                        btn.style.display = "block"
+                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=PekaoTFI", "_blank");
+                        actionContainer.appendChild(btn);
+                    }
                     if (tabUrl.includes("raport=ImportPrzeplywowCrypto")) {
                         if (data["bybit_export.csv"]) {
                             const pasteBtn = document.createElement("button");
@@ -634,6 +693,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     },
                                     function: insertTransactions,
                                     args: [data["finax_transakcje.csv"]]
+                                });
+                            };
+                            actionContainer.appendChild(pasteBtn);
+                        }
+                        if (data["pekao_ikze_export.csv"]) {
+                            const pasteBtn = document.createElement("button");
+                            pasteBtn.className = "BUTTON";
+                            pasteBtn.style.display = "block"
+                            pasteBtn.textContent = "Wklej pobrane transakcje";
+                            pasteBtn.onclick = () => {
+                                chrome.scripting.executeScript({
+                                    target: {
+                                        tabId: tab.id
+                                    },
+                                    function: insertTransactions_pekao,
+                                    args: [data["pekao_ikze_export.csv"]]
                                 });
                             };
                             actionContainer.appendChild(pasteBtn);
@@ -824,13 +899,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (!tabUrl.includes("finax.eu") && !tabUrl.includes("myfund.pl") && !tabUrl.includes("mbank.pl") && !tabUrl.includes("tfi.bnpparibas.pl") &&
-        !tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("24.investors.pl") && !tabUrl.includes('online.santander-ppk') && !tabUrl.includes("bybit.com") && !tabUrl.includes('mynsapp.noblesecurities')) {
+        !tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("24.investors.pl") && !tabUrl.includes('online.santander-ppk') && !tabUrl.includes("bybit.com") && !tabUrl.includes('mynsapp.noblesecurities') && !tabUrl.includes('pekao24')) {
         const box = document.getElementById("instructionsBoxa");
         box.innerHTML = `Na ten moment wtyczka obsługuje eksport danych wyłącznie ze stron: 
         <a href="https://finax.eu" target="_blank"><b>Finax.eu</b></a>,
         <a href="https://mbank.pl" target="_blank"><b>SFI mBank.pl</b></a>,
     <a href="https://www.bybit.com" target="_blank"><b>Bybit.com</b></a>,
         <a href="https://mynsapp.noblesecurities.pl/" target="_blank"><b>Noblesecurities.pl</b></a>,
+        <a href=" https://www.pekao24.pl" target="_blank"><b>pekao24.pl</b></a>,
         a także danych PPK z banków:
         <a href="https://sti24.tfi.bnpparibas.pl" target="_blank"><b>BNP Paribas</b></a>, 
         <a href="https://millenniumtfi.sti24.pl" target="_blank"><b>Millenium</b></a>,
@@ -912,9 +988,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (tabUrl.includes("finax.eu") && !tabUrl.includes("transactions")) {
         document.getElementById("grayBoxa").style.display = "block";
         exportBtn.style.display = "none";
-    }
-
-    if (tabUrl.includes("finax.eu")) {
+    } else if (tabUrl.includes("finax.eu")) {
         document.getElementById("instructionsBoxb").style.display = "block";
         document.getElementById("dateWarningBox").style.display = "block";
         exportBtn.style.display = "block";
@@ -923,8 +997,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (tabUrl.includes("mbank.pl") && !tabUrl.includes("wallet/sfi/history")) {
         document.getElementById("grayBoxb").style.display = "block";
         exportBtn.style.display = "none";
+    } else if (tabUrl.includes("mbank.pl")) {
+        document.getElementById("dateWarningBox").style.display = "block";
+        exportBtn.style.display = "block";
     }
-    if (tabUrl.includes("mbank.pl")) {
+
+    if (tabUrl.includes("pekao24") && !tabUrl.includes("historia/fundusze-inwestycyjne/transakcje") && !tabUrl.includes("historia:fundusze-inwestycyjne:transakcje")) {
+        document.getElementById("grayBoxc").style.display = "block";
+        exportBtn.style.display = "none";
+    } else if (tabUrl.includes("pekao24")) {
         document.getElementById("dateWarningBox").style.display = "block";
         exportBtn.style.display = "block";
     }
@@ -959,7 +1040,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const downloadStoredBtn = document.getElementById("downloadStoredBtn");
 
             chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
-                                    "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv"], (data) => {
+                                    "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv", "pekao_ikze_export.csv"], (data) => {
               let found = null;
               let filename = null;
 
@@ -1030,6 +1111,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             funcToRun = extractAndSaveTable_santander;
         } else if (tabUrl.includes("noblesecurities")) {
             funcToRun = extractAndSaveTable_noble;
+        } else if (tabUrl.includes("pekao24")) {
+            funcToRun = extractAndSaveTable_pekaoIkze;
         }
 
         if (funcToRun) {
@@ -2246,50 +2329,50 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
     setTimeout(() => {
 
         transactions.forEach(tr => {
-    const tds = tr.querySelectorAll("td");
+            const tds = tr.querySelectorAll("td");
 
-    const typOswiadczenia =
-        tds[2]?.querySelector("span")?.textContent.trim() || "";
+            const typOswiadczenia =
+                tds[2]?.querySelector("span")?.textContent.trim() || "";
 
-    const detailsTr = tr.nextElementSibling;
-    if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) {
-        return;
-    }
-
-    const details = detailsTr.querySelector("app-transaction-details");
-
-    const getValue = (label) => {
-        const props = details.querySelectorAll("app-property");
-        for (const p of props) {
-            const lbl = p.querySelector("span.label");
-            const val = p.querySelector("p");
-            if (lbl && val && lbl.textContent.trim() === label) {
-                return val.textContent.trim();
+            const detailsTr = tr.nextElementSibling;
+            if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) {
+                return;
             }
-        }
-        return "";
-    };
 
-    const dataWyceny = getValue("Data wyceny");
-    const fundusz = getValue("Fundusz docelowy");
-    const typTransakcji = getValue("Typ transakcji");
+            const details = detailsTr.querySelector("app-transaction-details");
 
-    const liczbaJU = normalizePlAmount(
-        getValue("Liczba jednostek transakcji")
-    );
-    const wanju = normalizePlAmount(
-        getValue("WANJU dla transakcji")
-    );
+            const getValue = (label) => {
+                const props = details.querySelectorAll("app-property");
+                for (const p of props) {
+                    const lbl = p.querySelector("span.label");
+                    const val = p.querySelector("p");
+                    if (lbl && val && lbl.textContent.trim() === label) {
+                        return val.textContent.trim();
+                    }
+                }
+                return "";
+            };
 
-    rows.push([
-        `"${dataWyceny}"`,
-        `"${fundusz}"`,
-        `"${typTransakcji}"`,
-        `"${typOswiadczenia}"`,
-        liczbaJU,
-        wanju
-    ]);
-});
+            const dataWyceny = getValue("Data wyceny");
+            const fundusz = getValue("Fundusz docelowy");
+            const typTransakcji = getValue("Typ transakcji");
+
+            const liczbaJU = normalizePlAmount(
+                getValue("Liczba jednostek transakcji")
+            );
+            const wanju = normalizePlAmount(
+                getValue("WANJU dla transakcji")
+            );
+
+            rows.push([
+                `"${dataWyceny}"`,
+                `"${fundusz}"`,
+                `"${typTransakcji}"`,
+                `"${typOswiadczenia}"`,
+                liczbaJU,
+                wanju
+            ]);
+        });
 
 
         if (rows.length <= 1) {
@@ -2299,9 +2382,15 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
         const csvContent = rows.map(r => r.join(";")).join("\n");
 
         chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
-            chrome.storage.local.set({ [filename]: csvContent }, () => {
-                chrome.runtime.sendMessage({ action: "dataSaved" });
-                chrome.runtime.sendMessage({ action: "checkStorage" });
+            chrome.storage.local.set({
+                [filename]: csvContent
+            }, () => {
+                chrome.runtime.sendMessage({
+                    action: "dataSaved"
+                });
+                chrome.runtime.sendMessage({
+                    action: "checkStorage"
+                });
             });
         });
 
@@ -2313,18 +2402,18 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
 
 function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
 
-  function normalizePlAmount(raw) {
-    if (raw == null) return "";
-    let s = String(raw);
-    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
-    s = s.replace(/\s+/g, " ").trim();
-    s = s.replace(/[^\d,\.\-\s]/g, "");
-    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
-    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
-    s = s.replace(",", ".");
-    s = s.replace(/(?!^)-/g, "");
-    return s.trim();
-  }
+    function normalizePlAmount(raw) {
+        if (raw == null) return "";
+        let s = String(raw);
+        s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+        s = s.replace(/\s+/g, " ").trim();
+        s = s.replace(/[^\d,\.\-\s]/g, "");
+        s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+        if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+        s = s.replace(",", ".");
+        s = s.replace(/(?!^)-/g, "");
+        return s.trim();
+    }
 
 
 
@@ -2351,7 +2440,9 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
             if (toggleBtn) {
                 toggleBtn.click();
             } else {
-                tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                tr.dispatchEvent(new MouseEvent("click", {
+                    bubbles: true
+                }));
             }
         }
     });
@@ -2407,10 +2498,16 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
         const csvContent = rows.map(r => r.join(";")).join("\n");
 
         chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
-            chrome.storage.local.set({ [filename]: csvContent }, () => {
+            chrome.storage.local.set({
+                [filename]: csvContent
+            }, () => {
                 if (!chrome.runtime.lastError) {
-                    chrome.runtime.sendMessage({ action: "dataSaved" });
-                    chrome.runtime.sendMessage({ action: "checkStorage" });
+                    chrome.runtime.sendMessage({
+                        action: "dataSaved"
+                    });
+                    chrome.runtime.sendMessage({
+                        action: "checkStorage"
+                    });
                 }
             });
         });
@@ -2422,160 +2519,168 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
 // 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV
 // 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV  (NOWA WERSJA jak Paribas)
 function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
-  function normalizePlAmount(raw) {
-    if (raw == null) return "";
-    let s = String(raw);
-    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
-    s = s.replace(/\s+/g, " ").trim();
-    s = s.replace(/[^\d,\.\-\s]/g, "");
-    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
-    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
-    s = s.replace(",", ".");
-    s = s.replace(/(?!^)-/g, "");
-    return s.trim();
-  }
-
-  const filename = "santander_export.csv";
-  const headers = [
-    "Data wyceny",
-    "Fundusz docelowy",
-    "Typ transakcji",
-    "Typ oświadczenia/dyspozycji",
-    "Liczba jednostek transakcji",
-    "WANJU dla transakcji"
-  ];
-  const rows = [headers];
-
-  const transactions = Array.from(
-    document.querySelectorAll("tr.nx-table-row.table__tr")
-  );
-
-  // helper: czy następny wiersz wygląda jak szczegóły
-  const isDetailsRow = (tr) => {
-    if (!tr) return false;
-    // różne warianty na sti24
-    if (tr.classList?.contains("nx-table-row__details")) return true;
-    if ((tr.className || "").includes("history-table__details")) return true;
-    if (tr.querySelector?.("app-transaction-details")) return true;
-    if (tr.querySelector?.("app-property")) return true;
-    return false;
-  };
-
-  // helper: klik otwierający szczegóły (różne warianty przycisków)
-  const openDetails = (tr) => {
-    const toggleBtn =
-      tr.querySelector("button.nx-button--tertiary") ||
-      tr.querySelector("button.nx-button") ||
-      tr.querySelector("a.nx-button--tertiary") ||
-      tr.querySelector("a.nx-button");
-    if (toggleBtn) {
-      toggleBtn.click();
-      return;
+    function normalizePlAmount(raw) {
+        if (raw == null) return "";
+        let s = String(raw);
+        s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+        s = s.replace(/\s+/g, " ").trim();
+        s = s.replace(/[^\d,\.\-\s]/g, "");
+        s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+        if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+        s = s.replace(",", ".");
+        s = s.replace(/(?!^)-/g, "");
+        return s.trim();
     }
-    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  };
 
-  // 1) Otwórz szczegóły tylko jeśli nie są widoczne
-  transactions.forEach((tr) => {
-    const nextRow = tr.nextElementSibling;
-    const detailsVisible = isDetailsRow(nextRow);
+    const filename = "santander_export.csv";
+    const headers = [
+        "Data wyceny",
+        "Fundusz docelowy",
+        "Typ transakcji",
+        "Typ oświadczenia/dyspozycji",
+        "Liczba jednostek transakcji",
+        "WANJU dla transakcji"
+    ];
+    const rows = [headers];
 
-    if (!detailsVisible) openDetails(tr);
-  });
+    const transactions = Array.from(
+        document.querySelectorAll("tr.nx-table-row.table__tr")
+    );
 
-  // 2) Poczekaj aż Angular doładuje DOM
-  setTimeout(() => {
+    // helper: czy następny wiersz wygląda jak szczegóły
+    const isDetailsRow = (tr) => {
+        if (!tr) return false;
+        // różne warianty na sti24
+        if (tr.classList?.contains("nx-table-row__details")) return true;
+        if ((tr.className || "").includes("history-table__details")) return true;
+        if (tr.querySelector?.("app-transaction-details")) return true;
+        if (tr.querySelector?.("app-property")) return true;
+        return false;
+    };
+
+    // helper: klik otwierający szczegóły (różne warianty przycisków)
+    const openDetails = (tr) => {
+        const toggleBtn =
+            tr.querySelector("button.nx-button--tertiary") ||
+            tr.querySelector("button.nx-button") ||
+            tr.querySelector("a.nx-button--tertiary") ||
+            tr.querySelector("a.nx-button");
+        if (toggleBtn) {
+            toggleBtn.click();
+            return;
+        }
+        tr.dispatchEvent(new MouseEvent("click", {
+            bubbles: true
+        }));
+    };
+
+    // 1) Otwórz szczegóły tylko jeśli nie są widoczne
     transactions.forEach((tr) => {
-      // "Typ oświadczenia/dyspozycji" w tabeli głównej (kolumna 3)
-      const typOswiadczenia =
-        tr.querySelector("td:nth-child(3) span")?.textContent?.trim() ||
-        tr.querySelector("td:nth-child(3)")?.textContent?.trim() ||
-        "";
+        const nextRow = tr.nextElementSibling;
+        const detailsVisible = isDetailsRow(nextRow);
 
-      const detailsTr = tr.nextElementSibling;
-      if (!isDetailsRow(detailsTr)) return;
-
-      // kontener szczegółów (czasem siedzi w app-transaction-details)
-      const detailsRoot =
-        detailsTr.querySelector("app-transaction-details") || detailsTr;
-
-      // ✅ NOWA logika jak Paribas: app-property -> span.label + (p / h4 / cokolwiek tekstowego)
-      const getValue = (label) => {
-        const props = detailsRoot.querySelectorAll("app-property");
-        for (const p of props) {
-          const lbl = p.querySelector("span.label");
-          if (!lbl) continue;
-
-          const lblTxt = lbl.textContent?.trim() || "";
-          if (lblTxt !== label) continue;
-
-          // Paribas: <p>
-          const pVal =
-            p.querySelector("p")?.textContent?.trim() ||
-            // Investors: <p class="nx-heading--subsection-xsmall">
-            p.querySelector("p.nx-heading--subsection-xsmall")?.textContent?.trim() ||
-            // Santander (stare UI): <h4 class="ng-star-inserted">
-            p.querySelector("h4.ng-star-inserted")?.textContent?.trim() ||
-            // fallback: dowolny element tekstowy obok
-            p.textContent?.replace(lblTxt, "").trim() ||
-            "";
-
-          return pVal;
-        }
-        return "";
-      };
-
-      const dataWyceny = getValue("Data wyceny");
-      const fundusz = getValue("Fundusz docelowy");
-      const typTransakcji = getValue("Typ transakcji");
-
-      const liczbaJUraw = getValue("Liczba jednostek transakcji");
-      const wanjuRaw = getValue("WANJU dla transakcji");
-
-      const liczbaJU = normalizePlAmount(liczbaJUraw);
-      const wanju = normalizePlAmount(wanjuRaw);
-
-      rows.push([
-        `"${dataWyceny}"`,
-        `"${fundusz}"`,
-        `"${typTransakcji}"`,
-        `"${typOswiadczenia}"`,
-        liczbaJU,
-        wanju
-      ]);
+        if (!detailsVisible) openDetails(tr);
     });
 
-    if (rows.length <= 1) return alert("Brak danych do eksportu.");
+    // 2) Poczekaj aż Angular doładuje DOM
+    setTimeout(() => {
+        transactions.forEach((tr) => {
+            // "Typ oświadczenia/dyspozycji" w tabeli głównej (kolumna 3)
+            const typOswiadczenia =
+                tr.querySelector("td:nth-child(3) span")?.textContent?.trim() ||
+                tr.querySelector("td:nth-child(3)")?.textContent?.trim() ||
+                "";
 
-    const csvContent = rows.map((row) => row.join(";")).join("\n");
+            const detailsTr = tr.nextElementSibling;
+            if (!isDetailsRow(detailsTr)) return;
 
-    chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
-      chrome.storage.local.set({ [filename]: csvContent }, () => {
-        if (!chrome.runtime.lastError) {
-          chrome.runtime.sendMessage({ action: "dataSaved" });
-          chrome.runtime.sendMessage({ action: "checkStorage" });
-        }
-      });
-    });
-  }, 1500); // jak w Paribas/Investors — bezpieczniej niż 1000ms
+            // kontener szczegółów (czasem siedzi w app-transaction-details)
+            const detailsRoot =
+                detailsTr.querySelector("app-transaction-details") || detailsTr;
+
+            // ✅ NOWA logika jak Paribas: app-property -> span.label + (p / h4 / cokolwiek tekstowego)
+            const getValue = (label) => {
+                const props = detailsRoot.querySelectorAll("app-property");
+                for (const p of props) {
+                    const lbl = p.querySelector("span.label");
+                    if (!lbl) continue;
+
+                    const lblTxt = lbl.textContent?.trim() || "";
+                    if (lblTxt !== label) continue;
+
+                    // Paribas: <p>
+                    const pVal =
+                        p.querySelector("p")?.textContent?.trim() ||
+                        // Investors: <p class="nx-heading--subsection-xsmall">
+                        p.querySelector("p.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+                        // Santander (stare UI): <h4 class="ng-star-inserted">
+                        p.querySelector("h4.ng-star-inserted")?.textContent?.trim() ||
+                        // fallback: dowolny element tekstowy obok
+                        p.textContent?.replace(lblTxt, "").trim() ||
+                        "";
+
+                    return pVal;
+                }
+                return "";
+            };
+
+            const dataWyceny = getValue("Data wyceny");
+            const fundusz = getValue("Fundusz docelowy");
+            const typTransakcji = getValue("Typ transakcji");
+
+            const liczbaJUraw = getValue("Liczba jednostek transakcji");
+            const wanjuRaw = getValue("WANJU dla transakcji");
+
+            const liczbaJU = normalizePlAmount(liczbaJUraw);
+            const wanju = normalizePlAmount(wanjuRaw);
+
+            rows.push([
+                `"${dataWyceny}"`,
+                `"${fundusz}"`,
+                `"${typTransakcji}"`,
+                `"${typOswiadczenia}"`,
+                liczbaJU,
+                wanju
+            ]);
+        });
+
+        if (rows.length <= 1) return alert("Brak danych do eksportu.");
+
+        const csvContent = rows.map((row) => row.join(";")).join("\n");
+
+        chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+            chrome.storage.local.set({
+                [filename]: csvContent
+            }, () => {
+                if (!chrome.runtime.lastError) {
+                    chrome.runtime.sendMessage({
+                        action: "dataSaved"
+                    });
+                    chrome.runtime.sendMessage({
+                        action: "checkStorage"
+                    });
+                }
+            });
+        });
+    }, 1500); // jak w Paribas/Investors — bezpieczniej niż 1000ms
 }
 
 
 // 📋 Wyciągnięcie danych z tabeli milenium i zapisanie jako CSV
 
 function extractAndSaveTable_milenium(STORAGE_KEYS_ALL) {
-  function normalizePlAmount(raw) {
-    if (raw == null) return "";
-    let s = String(raw);
-    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
-    s = s.replace(/\s+/g, " ").trim();
-    s = s.replace(/[^\d,\.\-\s]/g, "");
-    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
-    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
-    s = s.replace(",", ".");
-    s = s.replace(/(?!^)-/g, "");
-    return s.trim();
-  }
+    function normalizePlAmount(raw) {
+        if (raw == null) return "";
+        let s = String(raw);
+        s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+        s = s.replace(/\s+/g, " ").trim();
+        s = s.replace(/[^\d,\.\-\s]/g, "");
+        s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+        if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+        s = s.replace(",", ".");
+        s = s.replace(/(?!^)-/g, "");
+        return s.trim();
+    }
     const filename = "milenium_export.csv";
     const headers = [
         "Data wyceny",
@@ -2762,18 +2867,18 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
 // 📋 Wyciągnięcie danych z tabel Noble i zapisanie jako CSV
 
 function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
-  function normalizePlAmount(raw) {
-    if (raw == null) return "";
-    let s = String(raw);
-    s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
-    s = s.replace(/\s+/g, " ").trim();
-    s = s.replace(/[^\d,\.\-\s]/g, "");
-    s = s.replace(/(\d)\s+(?=\d)/g, "$1");
-    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
-    s = s.replace(",", ".");
-    s = s.replace(/(?!^)-/g, "");
-    return s.trim();
-  }
+    function normalizePlAmount(raw) {
+        if (raw == null) return "";
+        let s = String(raw);
+        s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+        s = s.replace(/\s+/g, " ").trim();
+        s = s.replace(/[^\d,\.\-\s]/g, "");
+        s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+        if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+        s = s.replace(",", ".");
+        s = s.replace(/(?!^)-/g, "");
+        return s.trim();
+    }
     const filename = "noble_export.csv";
     const headers = [
         "Data",
@@ -2789,46 +2894,46 @@ function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
     const rows = [headers];
 
     const parseNumber = (text) => {
-    const normalized = normalizePlAmount(text);
-    if (!normalized) return "";
-    const num = parseFloat(normalized);
-    return Number.isFinite(num) ? num : "";
-};
+        const normalized = normalizePlAmount(text);
+        if (!normalized) return "";
+        const num = parseFloat(normalized);
+        return Number.isFinite(num) ? num : "";
+    };
 
 
     // Dostosowane do nowego HTML:
     //  - wartość jest w 1. węźle tekstowym TD
     //  - waluta (np. PLN) w <span class="col-text-addon">
     const getValueWithCurrency = (td) => {
-    if (!td) return "";
+        if (!td) return "";
 
-    const rawVal =
-        (td.childNodes && td.childNodes[0] && td.childNodes[0].textContent)
-            ? td.childNodes[0].textContent
-            : td.textContent;
+        const rawVal =
+            (td.childNodes && td.childNodes[0] && td.childNodes[0].textContent) ?
+            td.childNodes[0].textContent :
+            td.textContent;
 
-    const text = (rawVal ?? "").toString().trim();
-    const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
+        const text = (rawVal ?? "").toString().trim();
+        const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
 
-    // Jeśli mamy osobno walutę w addon – czyścimy tylko część liczbową normalizePlAmount
-    if (currency) {
-        const numeric = normalizePlAmount(text);
-        return numeric ? `${numeric} ${currency}` : currency;
-    }
+        // Jeśli mamy osobno walutę w addon – czyścimy tylko część liczbową normalizePlAmount
+        if (currency) {
+            const numeric = normalizePlAmount(text);
+            return numeric ? `${numeric} ${currency}` : currency;
+        }
 
-    // Fallback: stary wzorzec "10 005,60 PLN" w jednym stringu
-    // Wyciągamy walutę z końcówki, a liczbę normalizujemy helperem
-    const m = text.match(/^(.*?)[\s\u00A0\u202F]*([A-Za-z]{2,5})\s*$/);
-    if (m) {
-        const numeric = normalizePlAmount(m[1]);
-        const cur = m[2];
-        return numeric ? `${numeric} ${cur}` : cur;
-    }
+        // Fallback: stary wzorzec "10 005,60 PLN" w jednym stringu
+        // Wyciągamy walutę z końcówki, a liczbę normalizujemy helperem
+        const m = text.match(/^(.*?)[\s\u00A0\u202F]*([A-Za-z]{2,5})\s*$/);
+        if (m) {
+            const numeric = normalizePlAmount(m[1]);
+            const cur = m[2];
+            return numeric ? `${numeric} ${cur}` : cur;
+        }
 
-    // Jeśli nie ma waluty – zwróć tekst (albo samą liczbę, jeśli chcesz)
-    const numericOnly = normalizePlAmount(text);
-    return numericOnly || text;
-};
+        // Jeśli nie ma waluty – zwróć tekst (albo samą liczbę, jeśli chcesz)
+        const numericOnly = normalizePlAmount(text);
+        return numericOnly || text;
+    };
 
 
     // 1) Kliknij wszystkie przyciski w kolumnie szczegółów, jeśli ich tekst ≠ "Zamknij"
@@ -2918,6 +3023,207 @@ function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
     }, 1000);
 }
 
+
+// ===================== PEKAO24 IKZE =====================
+// 📋 Pekao24 IKZE – lista transakcji + rozwijanie detali + eksport do CSV
+async function extractAndSaveTable_pekaoIkze(STORAGE_KEYS_ALL) {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, {
+        tries = 60,
+        interval = 150
+    } = {}) {
+        for (let i = 0; i < tries; i++) {
+            const v = fn();
+            if (v) return v;
+            await sleep(interval);
+        }
+        return null;
+    }
+
+    // liczby w PL formacie: "1,709" / "76,73 PLN" -> zwraca string w formacie "1,709" / "76,73"
+    // (nie zamieniamy na kropkę, bo do CSV chcesz dokładnie tak jak w UI)
+    const pickPlNumberString = (txt) => {
+        if (!txt) return "";
+        const s = String(txt)
+            .replace(/\u00a0/g, " ")
+            .trim();
+
+        // znajdź pierwszą liczbę z opcjonalnymi tysiącami i przecinkiem
+        // np. "76,73 PLN" -> "76,73", "1,709" -> "1,709"
+        const m = s.match(/-?\d{1,3}(?:[ .]\d{3})*(?:,\d+)?|-?\d+(?:,\d+)?/);
+        return m ? m[0].replace(/\s+/g, "") : "";
+    };
+
+    const normalize = (s) => (s || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+
+    // znajdź scrollowalny kontener (fallback: dokument)
+    const getScrollParent = (el) => {
+        let node = el?.parentElement;
+        while (node) {
+            const style = getComputedStyle(node);
+            const canScroll = /(auto|scroll)/.test(style.overflowY || style.overflow);
+            if (canScroll && node.scrollHeight > node.clientHeight) return node;
+            node = node.parentElement;
+        }
+        return document.scrollingElement || document.documentElement || document.body;
+    };
+
+    // wiersze transakcji (bez wierszy roku)
+    const rowSelector = 'tr.cdk-row.cdk-row-default';
+
+    const firstRow = document.querySelector(rowSelector);
+    if (!firstRow) {
+        alert("Nie znaleziono wierszy transakcji (tr.cdk-row-default). Upewnij się, że jesteś w Historii transakcji IKZE.");
+        return;
+    }
+
+    const scroller = getScrollParent(firstRow);
+
+    // preload – dociągnij wszystkie transakcje (jeśli jest lazy load/virtual scroll)
+    async function preloadAllRows(maxRounds = 30) {
+        let lastCount = 0;
+
+        for (let round = 0; round < maxRounds; round++) {
+            const rowsNow = document.querySelectorAll(rowSelector);
+            const count = rowsNow.length;
+
+            // przewiń do dołu, żeby doładować kolejne
+            scroller.scrollTop = scroller.scrollHeight;
+            await sleep(450);
+
+            const rowsAfter = document.querySelectorAll(rowSelector).length;
+            if (rowsAfter === lastCount && rowsAfter === count) {
+                // jeszcze jedno "potrząśnięcie"
+                scroller.scrollTop = scroller.scrollHeight;
+                await sleep(450);
+                const rowsAfter2 = document.querySelectorAll(rowSelector).length;
+                if (rowsAfter2 === rowsAfter) break;
+                lastCount = rowsAfter2;
+            } else {
+                lastCount = rowsAfter;
+            }
+        }
+    }
+
+    await preloadAllRows();
+
+    const rows = Array.from(document.querySelectorAll(rowSelector));
+    if (!rows.length) {
+        alert("Brak transakcji do eksportu.");
+        return;
+    }
+
+    // sprawdza/czeka aż pojawi się szczegółowy wiersz detali jako następny TR
+    async function ensureDetailsRow(row) {
+        const nextIsDetails = () => {
+            const next = row.nextElementSibling;
+            if (!next) return null;
+            if (next.classList.contains("cdk-row-details")) return next;
+            return null;
+        };
+
+        // jeśli już jest
+        let details = nextIsDetails();
+        if (details) return details;
+
+        // spróbuj rozwinąć
+        const toggleBtn =
+            row.querySelector("td.cdk-column-toggle button") ||
+            row.querySelector("pekao-button.toggle-button button") ||
+            row.querySelector("button");
+
+        if (toggleBtn) {
+            toggleBtn.click();
+        } else {
+            // fallback: klik w cały wiersz
+            row.click();
+        }
+
+        // poczekaj aż pojawi się details row
+        details = await waitFor(nextIsDetails, {
+            tries: 40,
+            interval: 150
+        });
+        return details;
+    }
+
+    // z wiersza detali zbiera label->value
+    function getDetailsMap(detailsRow) {
+        const map = new Map();
+
+        const pairs = Array.from(detailsRow.querySelectorAll(".details-row"));
+        for (const p of pairs) {
+            const label = normalize(p.querySelector(".label")?.textContent).toLowerCase();
+            const value = normalize(p.querySelector(".value")?.textContent);
+            if (label) map.set(label, value);
+        }
+        return map;
+    }
+
+    const results = [];
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+
+        try {
+            row.scrollIntoView({
+                block: "center"
+            });
+            await sleep(120);
+
+            // nagłówek transakcji
+            const name = normalize(row.querySelector('td.cdk-column-name p.title')?.textContent);
+            const type = normalize(row.querySelector('td.cdk-column-operationType span')?.textContent);
+
+            // detale
+            const detailsRow = await ensureDetailsRow(row);
+            if (!detailsRow) {
+                // jak nie ma detali, pomijamy (albo możesz dopisać pusty wiersz — tu wolę nie śmiecić)
+                continue;
+            }
+
+            const map = getDetailsMap(detailsRow);
+
+            const valuationDate = normalize(map.get("data wyceny") || "");
+            const unitsRaw = map.get("liczba jednostek") || "";
+            const priceRaw = map.get("cena jednostki") || "";
+
+            const units = pickPlNumberString(unitsRaw); // np. "1,709"
+            const price = pickPlNumberString(priceRaw); // np. "76,73"
+
+            // CSV row (używam średnika jako separatora, bo masz przecinek w liczbach)
+            // Nagłówki zostają dokładnie jak chcesz, tylko separator w pliku będzie ; (bezpieczniej w PL Excelu)
+            results.push([valuationDate, name, type, units, price].join(";"));
+        } catch (e) {
+            // pomijamy pojedyncze błędy
+        }
+    }
+
+    if (!results.length) {
+        alert("Nie udało się zebrać danych (brak wyników po parsowaniu).");
+        return;
+    }
+
+    const filename = "pekao_ikze_export.csv";
+    const headers = ["Data wyceny", "Nazwa", "Typ operacji", "Liczba jednostek", "Cena jednostki"];
+    const csv = [headers.join(";"), ...results].join("\n");
+
+    chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+        chrome.storage.local.set({
+            [filename]: csv
+        }, () => {
+            if (!chrome.runtime.lastError) {
+                chrome.runtime.sendMessage({
+                    action: "dataSaved"
+                });
+                chrome.runtime.sendMessage({
+                    action: "checkStorage"
+                });
+            }
+        });
+    });
+}
 
 function bybit_extract_depositSpot() {
     const BYBIT_KEY = "bybit_export.csv";
@@ -3012,11 +3318,11 @@ function bybit_extract_depositSpot() {
 
         // tu dalej Twoja istniejąca logika filtrowania Funding;
         const kept = lines.filter((l) => {
-  const cols = l.split(";");
-  const source = (cols[1] || "").trim();
-  return !/^Funding_/i.test(source);     // usuń wszystkie Funding_*
-  // albo wężej: return source !== SOURCE; // tylko dany extractor
-});
+            const cols = l.split(";");
+            const source = (cols[1] || "").trim();
+            return !/^Funding_/i.test(source); // usuń wszystkie Funding_*
+            // albo wężej: return source !== SOURCE; // tylko dany extractor
+        });
 
 
         const existingSet = new Set(kept.map(norm));
@@ -3871,8 +4177,7 @@ function bybit_extract_depositFiat() {
 
         // 1) usuń tylko ogólny "Funding;"
         const kept = lines.filter(
-            (l) => !/^Funding;/i.test(l.trim())
-        );
+            (l) => !/^Funding;/i.test(l.trim()));
 
         const existingSet = new Set(kept.map(norm));
 
@@ -4147,6 +4452,7 @@ function updateVisibleIcon() {
     const mileniumIcon = document.getElementById("mileniumIcon");
     const investorsIcon = document.getElementById("investorsIcon");
     const santanderIcon = document.getElementById("santanderIcon");
+    const pekaoIcon = document.getElementById("pekaoIcon");
     const nobleIcon = document.getElementById("nobleIcon");
     const bybitIcon = document.getElementById("bybitIcon");
 
@@ -4157,6 +4463,7 @@ function updateVisibleIcon() {
     mileniumIcon.style.display = "none";
     investorsIcon.style.display = "none";
     santanderIcon.style.display = "none";
+    pekaoIcon.style.display = "none";
     nobleIcon.style.display = "none";
     bybitIcon.style.display = "none";
 
@@ -4188,8 +4495,11 @@ function updateVisibleIcon() {
         if (url.includes("bybit")) {
             bybitIcon.style.display = "inline-block";
 
-        } else if (url.includes("noble")) {
+        }
+        if (url.includes("noble")) {
             nobleIcon.style.display = "inline-block"
+        } else if (url.includes("pekao")) {
+            pekaoIcon.style.display = "inline-block"
         }
     });
 }
@@ -4236,6 +4546,11 @@ document.getElementById("santanderIcon").addEventListener("click", () => {
 document.getElementById("nobleIcon").addEventListener("click", () => {
     chrome.tabs.create({
         url: "https://mynsapp.noblesecurities.pl/"
+    });
+});
+document.getElementById("pekaoIcon").addEventListener("click", () => {
+    chrome.tabs.create({
+        url: " https://www.pekao24.pl"
     });
 });
 document.getElementById("bybitIcon").addEventListener("click", () => {
