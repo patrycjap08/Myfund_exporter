@@ -2774,253 +2774,90 @@ function extractAndSaveTable_milenium(STORAGE_KEYS_ALL) {
 // 📋 Wyciągnięcie danych z tabel Finax i zapisanie jako CSV
 
 function extractAndSaveTable(STORAGE_KEYS_ALL) {
-    let table = null;
-    let headers = [];
     let rows = [];
     let filename = "";
+    let csvContent = "";
+
+    // Sprawdzamy czy jesteśmy na stronie transakcji czy operacji
+    // Transakcje mają div z klasą zawierającą "Ticker" w nagłówku
+    const allHeaderDivs = document.querySelectorAll(".finax-font-bold-standard");
     let isTransakcje = false;
 
-    const tablesR = document.querySelectorAll("table.group-R");
-    tablesR.forEach(t => {
-        if (getComputedStyle(t).display !== "none") table = t;
+    allHeaderDivs.forEach(header => {
+        if (header.textContent.includes("Ticker")) isTransakcje = true;
     });
 
-    if (table) {
-        isTransakcje = true;
+    if (isTransakcje) {
         filename = "finax_transakcje.csv";
-        headers = ["Data", "Typ transakcji", "Ilość sztuk", "Cena za sztukę (€)", "Wartość transakcji (€)", "Ticker"];
+        const headers = ["Data", "Ticker", "Typ transakcji", "Ilość sztuk", "Cena za sztukę (€)", "Wartość transakcji (€)"];
         rows.push(headers);
 
-        const trs = table.querySelectorAll("tbody tr.show");
-        trs.forEach(tr => {
-            const tds = tr.querySelectorAll("td");
-            if (tds.length >= headers.length) {
-                let rowData = [];
-                for (let i = 1; i < headers.length + 1; i++) {
-                    let value = tds[i]?.textContent.trim().replace(",", ".").replace("€", "").trim() || "";
-                    rowData.push(value);
-                }
-                rows.push(rowData);
-            }
-        });
-    } else {
-        const tablesF = document.querySelectorAll("table.group-F");
-        tablesF.forEach(t => {
-            if (!t.closest("#summaryTableContainer")) table = t;
-        });
+        // Wiersze transakcji – mają border-b (nie border-b-1 jak nagłówek)
+        const rowDivs = document.querySelectorAll(
+            ".flex.flex-row.gap-8.items-center.border-b.border-\\[\\#D2D1D1\\]"
+        );
 
-        if (!table) return alert("Nie znaleziono danych do eksportu.");
-
-        filename = "finax_operacje.csv";
-        headers = ["", "Data", "Rodzaj", "Uwaga", "Kwota"];
-        rows.push(headers);
-
-        const trs = table.querySelectorAll("tbody tr.show");
-        trs.forEach(tr => {
-            const tds = tr.querySelectorAll("td");
-            if (tds.length >= 5) {
-                const data = tds[1]?.textContent.trim() || "";
-                const rodzaj = tds[2]?.textContent.trim() || "";
-                const uwaga = tds[3]?.textContent.trim() || "";
-                const kwota = tds[4]?.textContent.trim() || "";
-
+        rowDivs.forEach(div => {
+            const cells = div.querySelectorAll(":scope > div");
+            if (cells.length >= 6) {
+                const cleanEuro = (text) => text.trim().replace("€", "").replace(",", ".").trim();
                 rows.push([
-                    "",
-                    data,
-                    rodzaj,
-                    uwaga,
-                    kwota
-                ]);
-
-                const extra = tds[5]?.textContent.trim().replace(/\s+/g, " ") || "";
-                if (extra) {
-                    rows.push(["", "", "", "", extra]);
-                }
-            }
-        });
-    }
-
-    if (rows.length === 1) return alert("Brak danych do eksportu.");
-
-    const csvContent = filename === "finax_operacje.csv" ?
-        rows.map(row => row.map(cell => `"${cell}"`).join(";")).join("\n") :
-        rows.map(row => row.join(";")).join("\n");
-
-    // 🧹 Usuwamy oba pliki – żeby był tylko jeden
-    chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
-        // 📝 Zapisujemy tylko ten aktualny
-        chrome.storage.local.set({
-            [filename]: csvContent
-        }, () => {
-            if (!chrome.runtime.lastError) {
-                chrome.runtime.sendMessage({
-                    action: "dataSaved"
-                });
-                chrome.runtime.sendMessage({
-                    action: "checkStorage"
-                });
-            }
-        });
-    });
-}
-
-// 📋 Wyciągnięcie danych z tabel Noble i zapisanie jako CSV
-
-function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
-    function normalizePlAmount(raw) {
-        if (raw == null) return "";
-        let s = String(raw);
-        s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
-        s = s.replace(/\s+/g, " ").trim();
-        s = s.replace(/[^\d,\.\-\s]/g, "");
-        s = s.replace(/(\d)\s+(?=\d)/g, "$1");
-        if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
-        s = s.replace(",", ".");
-        s = s.replace(/(?!^)-/g, "");
-        return s.trim();
-    }
-    const filename = "noble_export.csv";
-    const headers = [
-        "Data",
-        "Papier",
-        "Rodzaj operacji",
-        "Liczba",
-        "Kurs/Cena",
-        "Prowizja DM",
-        "Wartość netto",
-        "Wartość brutto",
-        "Emitent"
-    ];
-    const rows = [headers];
-
-    const parseNumber = (text) => {
-        const normalized = normalizePlAmount(text);
-        if (!normalized) return "";
-        const num = parseFloat(normalized);
-        return Number.isFinite(num) ? num : "";
-    };
-
-
-    // Dostosowane do nowego HTML:
-    //  - wartość jest w 1. węźle tekstowym TD
-    //  - waluta (np. PLN) w <span class="col-text-addon">
-    const getValueWithCurrency = (td) => {
-        if (!td) return "";
-
-        const rawVal =
-            (td.childNodes && td.childNodes[0] && td.childNodes[0].textContent) ?
-            td.childNodes[0].textContent :
-            td.textContent;
-
-        const text = (rawVal ?? "").toString().trim();
-        const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
-
-        // Jeśli mamy osobno walutę w addon – czyścimy tylko część liczbową normalizePlAmount
-        if (currency) {
-            const numeric = normalizePlAmount(text);
-            return numeric ? `${numeric} ${currency}` : currency;
-        }
-
-        // Fallback: stary wzorzec "10 005,60 PLN" w jednym stringu
-        // Wyciągamy walutę z końcówki, a liczbę normalizujemy helperem
-        const m = text.match(/^(.*?)[\s\u00A0\u202F]*([A-Za-z]{2,5})\s*$/);
-        if (m) {
-            const numeric = normalizePlAmount(m[1]);
-            const cur = m[2];
-            return numeric ? `${numeric} ${cur}` : cur;
-        }
-
-        // Jeśli nie ma waluty – zwróć tekst (albo samą liczbę, jeśli chcesz)
-        const numericOnly = normalizePlAmount(text);
-        return numericOnly || text;
-    };
-
-
-    // 1) Kliknij wszystkie przyciski w kolumnie szczegółów, jeśli ich tekst ≠ "Zamknij"
-    const buttons = Array.from(document.querySelectorAll("td.col-show-instrument-history button"));
-    buttons.forEach(btn => {
-        const label = (btn.querySelector("span")?.textContent || btn.textContent || "").trim();
-        if (label !== "Zamknij") btn.click();
-    });
-
-    // 2) Poczekaj jak w oryginale
-    setTimeout(() => {
-        // Główna zmiana: Noble przeszło z ui-table na p-datatable.
-        // Bierzemy oba warianty, a potem i tak filtrujemy tylko te wiersze, które mają kolumnę z przyciskiem.
-        const mainRowsAll = Array.from(document.querySelectorAll(
-            "tbody.p-datatable-tbody > tr, tbody.ui-table-tbody > tr"
-        ));
-        const mainRows = mainRowsAll.filter(tr => tr.querySelector(".col-show-instrument-history"));
-
-        for (let i = 0; i < mainRows.length; i++) {
-            const mainRow = mainRows[i];
-            const nextRow = mainRow.nextElementSibling;
-
-            // Jak wcześniej: Papier i Emitent z wiersza głównego
-            const papier =
-                mainRow.querySelector(".col-instrument .name")?.textContent.trim() ||
-                mainRow.querySelector(".col-instrument label")?.textContent.trim() || "";
-            const emitent = mainRow.querySelector(".col-issuer")?.textContent.trim() || "";
-
-            // Detale: teraz siedzą w .detailEntries i PrimeNG-owym tbody
-            const tbody =
-                nextRow?.querySelector(".detailEntries table tbody.p-datatable-tbody") ||
-                nextRow?.querySelector(".detailEntries table tbody.ui-table-tbody") ||
-                nextRow?.querySelector("table tbody.p-datatable-tbody") ||
-                nextRow?.querySelector("table tbody.ui-table-tbody");
-
-            if (!tbody) continue;
-
-            const detailsRows = Array.from(tbody.querySelectorAll("tr"));
-            for (const row of detailsRows) {
-                const data = row.querySelector(".col-operation-date")?.textContent.trim() || "";
-                const rodzaj = row.querySelector(".col-operation-type")?.textContent.trim() || "";
-                const liczba = parseNumber(row.querySelector(".col-amount")?.textContent);
-                const cena = parseNumber(row.querySelector(".col-price")?.textContent);
-                const prowizja = parseNumber(row.querySelector(".col-commission")?.textContent);
-                const netto = getValueWithCurrency(row.querySelector(".col-net-value"));
-                const brutto = getValueWithCurrency(row.querySelector(".col-gross-value"));
-
-                rows.push([
-                    data,
-                    papier,
-                    rodzaj,
-                    liczba,
-                    cena,
-                    prowizja,
-                    netto,
-                    brutto,
-                    emitent
+                    cells[0].textContent.trim(),
+                    cells[1].textContent.trim(),
+                    cells[2].textContent.trim(),
+                    cells[3].textContent.trim(),
+                    cleanEuro(cells[4].textContent),
+                    cleanEuro(cells[5].textContent),
                 ]);
             }
-        }
+        });
 
         if (rows.length === 1) return alert("Brak danych do eksportu.");
+        csvContent = rows.map(row => row.join(";")).join("\n");
 
-        // CSV jak w Twoim oryginale: średniki; nagłówki + tekstowe w cudzysłowach
-        const csvContent = rows.map((row, rowIndex) =>
-            row.map((cell, colIndex) => {
-                if (rowIndex === 0 || colIndex <= 2 || colIndex >= 6) return `"${cell}"`;
-                return cell;
-            }).join(";")
-        ).join("\n");
+    } else {
+        filename = "finax_operacje.csv";
+        const headers = ["Data", "Rodzaj", "Uwaga", "Kwota", "Kurs"];
+        rows.push(headers);
 
-        chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
-            chrome.storage.local.set({
-                [filename]: csvContent
-            }, () => {
-                if (!chrome.runtime.lastError) {
-                    chrome.runtime.sendMessage({
-                        action: "dataSaved"
-                    });
-                    chrome.runtime.sendMessage({
-                        action: "checkStorage"
-                    });
-                }
-            });
+        // Kontener operacji – szukamy hidden md:block
+        const container = document.querySelector(".hidden.md\\:block");
+        if (!container) return alert("Nie znaleziono danych do eksportu.");
+
+        const rowDivs = container.querySelectorAll(
+            ".flex.flex-row.gap-8.items-center.border-b.border-\\[\\#D2D1D1\\]"
+        );
+
+        rowDivs.forEach(div => {
+            const cells = div.querySelectorAll(":scope > div");
+            if (cells.length >= 4) {
+                const data   = cells[0].textContent.trim();
+                const rodzaj = cells[1].textContent.trim();
+                const uwaga  = cells[2].textContent.trim();
+
+                // Kwota to pierwsze tekstNode w cells[3], kurs to ewentualny <p> w środku
+                const kwotaCell = cells[3];
+                const kursEl = kwotaCell.querySelector("p");
+                const kurs = kursEl ? kursEl.textContent.trim() : "";
+                // Czyścimy kwotę z tekstu kursu
+                const kwota = kwotaCell.textContent.replace(kurs, "").trim();
+
+                rows.push([data, rodzaj, uwaga, kwota, kurs]);
+            }
         });
 
-    }, 1000);
+        if (rows.length === 1) return alert("Brak danych do eksportu.");
+        csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(";")).join("\n");
+    }
+
+    chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+        chrome.storage.local.set({ [filename]: csvContent }, () => {
+            if (!chrome.runtime.lastError) {
+                chrome.runtime.sendMessage({ action: "dataSaved" });
+                chrome.runtime.sendMessage({ action: "checkStorage" });
+            }
+        });
+    });
 }
 
 
