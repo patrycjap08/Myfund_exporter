@@ -2778,22 +2778,19 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
     let filename = "";
     let csvContent = "";
 
-    // Sprawdzamy czy jesteśmy na stronie transakcji czy operacji
-    // Transakcje mają div z klasą zawierającą "Ticker" w nagłówku
-    const allHeaderDivs = document.querySelectorAll(".finax-font-bold-standard");
-    let isTransakcje = false;
-
-    allHeaderDivs.forEach(header => {
-        if (header.textContent.includes("Ticker")) isTransakcje = true;
-    });
+    const activeNav = document.querySelector(".navigation-item.active");
+    const isTransakcje = activeNav?.dataset.group === "R";
 
     if (isTransakcje) {
         filename = "finax_transakcje.csv";
-        const headers = ["Data", "Ticker", "Typ transakcji", "Ilość sztuk", "Cena za sztukę (€)", "Wartość transakcji (€)"];
+        const headers = ["Data", "Typ transakcji", "Ilość sztuk", "Cena za sztukę (€)", "Wartość transakcji (€)", "Ticker"];
         rows.push(headers);
 
-        // Wiersze transakcji – mają border-b (nie border-b-1 jak nagłówek)
-        const rowDivs = document.querySelectorAll(
+        // Szukamy wewnątrz konkretnie sekcji group-R
+        const container = document.querySelector("#transactions-group-R .hidden.md\\:block");
+        if (!container) return alert("Nie znaleziono danych do eksportu.");
+
+        const rowDivs = container.querySelectorAll(
             ".flex.flex-row.gap-8.items-center.border-b.border-\\[\\#D2D1D1\\]"
         );
 
@@ -2802,12 +2799,12 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
             if (cells.length >= 6) {
                 const cleanEuro = (text) => text.trim().replace("€", "").replace(",", ".").trim();
                 rows.push([
-                    cells[0].textContent.trim(),
-                    cells[1].textContent.trim(),
-                    cells[2].textContent.trim(),
-                    cells[3].textContent.trim(),
-                    cleanEuro(cells[4].textContent),
-                    cleanEuro(cells[5].textContent),
+                    cells[0].textContent.trim(), // Data
+                    cells[2].textContent.trim(), // Typ transakcji
+                    cells[3].textContent.trim(), // Ilość sztuk
+                    cleanEuro(cells[4].textContent), // Cena za sztukę
+                    cleanEuro(cells[5].textContent), // Wartość transakcji
+                    cells[1].textContent.trim(), // Ticker
                 ]);
             }
         });
@@ -2817,11 +2814,11 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
 
     } else {
         filename = "finax_operacje.csv";
-        const headers = ["Data", "Rodzaj", "Uwaga", "Kwota", "Kurs"];
+        const headers = ["", "Data", "Rodzaj", "Uwaga", "Kwota"];
         rows.push(headers);
 
-        // Kontener operacji – szukamy hidden md:block
-        const container = document.querySelector(".hidden.md\\:block");
+        // Szukamy wewnątrz konkretnie sekcji group-F
+        const container = document.querySelector("#transactions-group-F .hidden.md\\:block");
         if (!container) return alert("Nie znaleziono danych do eksportu.");
 
         const rowDivs = container.querySelectorAll(
@@ -2834,15 +2831,13 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
                 const data   = cells[0].textContent.trim();
                 const rodzaj = cells[1].textContent.trim();
                 const uwaga  = cells[2].textContent.trim();
-
-                // Kwota to pierwsze tekstNode w cells[3], kurs to ewentualny <p> w środku
                 const kwotaCell = cells[3];
                 const kursEl = kwotaCell.querySelector("p");
                 const kurs = kursEl ? kursEl.textContent.trim() : "";
-                // Czyścimy kwotę z tekstu kursu
                 const kwota = kwotaCell.textContent.replace(kurs, "").trim();
 
-                rows.push([data, rodzaj, uwaga, kwota, kurs]);
+                const kwotaFinal = kurs ? `${kwota}\n\n${kurs}` : kwota;
+                rows.push(["", data, rodzaj, uwaga, kwotaFinal]);
             }
         });
 
@@ -2859,7 +2854,6 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
         });
     });
 }
-
 
 // ===================== PEKAO24 IKZE =====================
 // 📋 Pekao24 IKZE – lista transakcji + rozwijanie detali + eksport do CSV
