@@ -407,6 +407,163 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(tryClick, 300); // pierwszy strzał
     }
 
+    function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
+    const filename = "noble_export.csv";
+    const headers = [
+        "Data",
+        "Papier",
+        "Rodzaj operacji",
+        "Liczba",
+        "Kurs/Cena",
+        "Prowizja DM",
+        "Wartość netto",
+        "Wartość brutto",
+        "Emitent"
+    ];
+    const rows = [headers];
+
+    function normalizePlAmount(raw) {
+        if (raw == null) return "";
+        let s = String(raw);
+        s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
+        s = s.replace(/\s+/g, " ").trim();
+        s = s.replace(/[^\d,\.\-\s]/g, "");
+        s = s.replace(/(\d)\s+(?=\d)/g, "$1");
+        if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
+        s = s.replace(",", ".");
+        s = s.replace(/(?!^)-/g, "");
+        return s.trim();
+    }
+
+    const parseNumber = (text) => {
+        const normalized = normalizePlAmount(text);
+        if (!normalized) return "";
+        const num = parseFloat(normalized);
+        return Number.isFinite(num) ? num : "";
+    };
+
+    // Dla kolumn z wartością + walutą (np. "10 005,60 PLN")
+    const getValueWithCurrency = (td) => {
+        if (!td) return "";
+        const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
+        // weź tekst bez elementu .col-text-addon
+        const clone = td.cloneNode(true);
+        clone.querySelectorAll(".col-text-addon").forEach(el => el.remove());
+        const text = clone.textContent.trim();
+        const numeric = normalizePlAmount(text);
+        if (currency) return numeric ? `${numeric} ${currency}` : currency;
+        return numeric || text;
+    };
+
+    // Sprawdź czy szczegóły są otwarte — szukamy przycisku "Zamknij"
+    const isOpen = (tr) => {
+        const btn = tr.querySelector("td.col-show-instrument-history button");
+        if (!btn) return false;
+        return btn.textContent.trim().toLowerCase().includes("zamknij");
+    };
+
+    // Otwórz szczegóły — kliknij przycisk w kolumnie col-show-instrument-history
+    const openDetails = (tr) => {
+        const btn = tr.querySelector("td.col-show-instrument-history button");
+        if (btn) btn.click();
+    };
+
+    // Pobierz wiersze główne (te z kolumną col-show-instrument-history)
+    const mainRows = Array.from(document.querySelectorAll(
+        "tbody.ui-table-tbody > tr"
+    )).filter(tr => tr.querySelector("td.col-show-instrument-history"));
+
+    if (!mainRows.length) {
+        return alert("Nie znaleziono wierszy historii Noble. Upewnij się, że jesteś na stronie historii inwestycji.");
+    }
+
+    // Otwórz szczegóły dla wszystkich wierszy które są zamknięte
+    mainRows.forEach(tr => {
+        if (!isOpen(tr)) openDetails(tr);
+    });
+
+    // Poczekaj aż PrimeNG załaduje wiersze szczegółów
+    setTimeout(() => {
+        mainRows.forEach(mainRow => {
+            // Papier i Emitent z wiersza głównego
+            const papier =
+                mainRow.querySelector("td.col-instrument .name")?.textContent.trim() ||
+                mainRow.querySelector("td.col-instrument label")?.textContent.trim() ||
+                "";
+            const emitent =
+                mainRow.querySelector("td.col-issuer")?.textContent.trim() || "";
+
+            // Wiersz szczegółów to następny <tr> który zawiera detailEntries
+            const detailRow = mainRow.nextElementSibling;
+            if (!detailRow) return;
+
+            const detailEntries = detailRow.querySelector(".detailEntries");
+            if (!detailEntries) return;
+
+            // Wiersze transakcji w tabeli szczegółów
+            const detailTrs = Array.from(detailEntries.querySelectorAll(
+                "tbody.ui-table-tbody > tr"
+            ));
+
+            detailTrs.forEach(row => {
+                const data =
+                    row.querySelector("td.col-operation-date")?.textContent.trim() || "";
+                const rodzaj =
+                    row.querySelector("td.col-operation-type")?.textContent.trim() || "";
+                const liczba =
+                    parseNumber(row.querySelector("td.col-amount")?.textContent);
+                const cena =
+                    parseNumber(row.querySelector("td.col-price")?.textContent);
+                const prowizja =
+                    parseNumber(row.querySelector("td.col-commission")?.textContent);
+                const netto =
+                    getValueWithCurrency(row.querySelector("td.col-net-value"));
+                const brutto =
+                    getValueWithCurrency(row.querySelector("td.col-gross-value"));
+
+                if (!data && !rodzaj) return; // pomiń puste wiersze
+
+                rows.push([
+                    data,
+                    papier,
+                    rodzaj,
+                    liczba,
+                    cena,
+                    prowizja,
+                    netto,
+                    brutto,
+                    emitent
+                ]);
+            });
+        });
+
+        if (rows.length <= 1) {
+            return alert("Brak danych do eksportu. Upewnij się, że szczegóły transakcji są widoczne.");
+        }
+
+        const csvContent = rows.map((row, rowIndex) =>
+            row.map((cell, colIndex) => {
+                // Tekstowe kolumny w cudzysłowach: nagłówek, papier, rodzaj, netto, brutto, emitent
+                if (rowIndex === 0 || colIndex === 0 || colIndex === 1 ||
+                    colIndex === 2 || colIndex === 6 || colIndex === 7 || colIndex === 8) {
+                    return `"${String(cell).replace(/"/g, '""')}"`;
+                }
+                return cell;
+            }).join(";")
+        ).join("\n");
+
+        chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+            chrome.storage.local.set({ [filename]: csvContent }, () => {
+                if (!chrome.runtime.lastError) {
+                    chrome.runtime.sendMessage({ action: "dataSaved" });
+                    chrome.runtime.sendMessage({ action: "checkStorage" });
+                }
+            });
+        });
+
+    }, 1000);
+}
+
     // 📤 Wklejanie operacji santander do formularza MyFund
 
     function insertTransactions_santander(csvContent) {
@@ -507,53 +664,53 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(tryClick, 300); // pierwszy strzał
     }
     // ===================== MYFUND IMPORT: PEKAO IKZE =====================
-function insertTransactions_pekao(csvContent) {
-    const select = document.querySelector('select#bank');
-    if (select) {
-        select.value = 'PekaoTFI';
-        select.dispatchEvent(new Event('change', {
+    function insertTransactions_pekao(csvContent) {
+        const select = document.querySelector('select#bank');
+        if (select) {
+            select.value = 'PekaoTFI';
+            select.dispatchEvent(new Event('change', {
+                bubbles: true
+            }));
+        }
+
+        const csvBlob = new Blob([csvContent], {
+            type: 'text/csv'
+        });
+        const file = new File([csvBlob], "pekao_ikze_export.csv", {
+            type: "text/csv"
+        });
+
+        const input = document.querySelector('input[type="file"]#imagefile');
+        if (!input) {
+            alert("Nie znaleziono pola do przesłania pliku.");
+            return;
+        }
+
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        input.files = dataTransfer.files;
+        input.dispatchEvent(new Event('change', {
             bubbles: true
         }));
-    }
 
-    const csvBlob = new Blob([csvContent], {
-        type: 'text/csv'
-    });
-    const file = new File([csvBlob], "pekao_ikze_export.csv", {
-        type: "text/csv"
-    });
-
-    const input = document.querySelector('input[type="file"]#imagefile');
-    if (!input) {
-        alert("Nie znaleziono pola do przesłania pliku.");
-        return;
-    }
-
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-    input.files = dataTransfer.files;
-    input.dispatchEvent(new Event('change', {
-        bubbles: true
-    }));
-
-    // klik "Pobierz z pliku"
-    const tryClick = () => {
-        const submitButton = document.querySelector('#submit1');
-        if (submitButton) {
-            submitButton.click();
-        } else {
-            if (tryClick.attempts < 5) {
-                tryClick.attempts++;
-                setTimeout(tryClick, 200);
+        // klik "Pobierz z pliku"
+        const tryClick = () => {
+            const submitButton = document.querySelector('#submit1');
+            if (submitButton) {
+                submitButton.click();
             } else {
-                alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+                if (tryClick.attempts < 5) {
+                    tryClick.attempts++;
+                    setTimeout(tryClick, 200);
+                } else {
+                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+                }
             }
-        }
-    };
+        };
 
-    tryClick.attempts = 0;
-    setTimeout(tryClick, 300);
-}
+        tryClick.attempts = 0;
+        setTimeout(tryClick, 300);
+    }
     // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
     function updateActionButtons() {
@@ -2297,14 +2454,15 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
     const rows = [headers];
 
     function normalizePlAmount(raw) {
-        if (!raw) return "";
+        if (raw == null) return "";
         let s = String(raw);
         s = s.replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ");
         s = s.replace(/\s+/g, " ").trim();
-        s = s.replace(/[^\d,.\-\s]/g, "");
+        s = s.replace(/[^\d,\.\-\s]/g, "");
         s = s.replace(/(\d)\s+(?=\d)/g, "$1");
         if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "");
         s = s.replace(",", ".");
+        s = s.replace(/(?!^)-/g, "");
         return s.trim();
     }
 
@@ -2312,43 +2470,52 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
         document.querySelectorAll("tr.nx-table-row.table__tr")
     );
 
-    // 1️⃣ OTWÓRZ SZCZEGÓŁY (jeśli trzeba)
-    transactions.forEach(tr => {
-        const btn = tr.querySelector("button.nx-button, a.nx-button");
-        if (!btn) return;
+    const isDetailsRow = (tr) => {
+    if (!tr) return false;
+    if (tr.classList?.contains("nx-table-row__details")) return true;
+    if ((tr.className || "").includes("history-table__details")) return true;
+    if (tr.querySelector?.("app-transaction-details")) return true;
+    if (tr.querySelector?.("app-property")) return true;
+    return false;
+};
+const openDetails = (tr) => {
+    const toggleBtn =
+        tr.querySelector("button.nx-button--tertiary") ||
+        tr.querySelector("button.nx-button") ||
+        tr.querySelector("a.nx-button--tertiary") ||
+        tr.querySelector("a.nx-button");
+    if (toggleBtn) { toggleBtn.click(); return; }
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+};
+transactions.forEach((tr) => {
+    if (!isDetailsRow(tr.nextElementSibling)) openDetails(tr);
+});
 
-        const label = btn.textContent.trim().toLowerCase();
-
-        // jeżeli NIE jest „Ukryj”, to znaczy że szczegóły są zamknięte
-        if (!label.includes("ukryj")) {
-            btn.click();
-        }
-    });
-
-    // 2️⃣ CZEKAJ NA ANGULAR
     setTimeout(() => {
-
         transactions.forEach(tr => {
-            const tds = tr.querySelectorAll("td");
-
             const typOswiadczenia =
-                tds[2]?.querySelector("span")?.textContent.trim() || "";
+                tr.querySelector("td:nth-child(3) span")?.textContent?.trim() ||
+                tr.querySelector("td:nth-child(3)")?.textContent?.trim() ||
+                "";
 
             const detailsTr = tr.nextElementSibling;
-            if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) {
-                return;
-            }
+            if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) return;
 
-            const details = detailsTr.querySelector("app-transaction-details");
+            const details = detailsTr.querySelector("app-transaction-details") || detailsTr
 
             const getValue = (label) => {
-                const props = details.querySelectorAll("app-property");
+                const props = detailsTr.querySelectorAll("app-property");
                 for (const p of props) {
                     const lbl = p.querySelector("span.label");
-                    const val = p.querySelector("p");
-                    if (lbl && val && lbl.textContent.trim() === label) {
-                        return val.textContent.trim();
-                    }
+                    if (!lbl || lbl.textContent.trim() !== label) continue;
+                    return (
+                        p.querySelector("p.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+                        p.querySelector("p")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall.ng-star-inserted")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+                        p.querySelector("h4.ng-star-inserted")?.textContent?.trim() ||
+                        ""
+                    );
                 }
                 return "";
             };
@@ -2356,13 +2523,8 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
             const dataWyceny = getValue("Data wyceny");
             const fundusz = getValue("Fundusz docelowy");
             const typTransakcji = getValue("Typ transakcji");
-
-            const liczbaJU = normalizePlAmount(
-                getValue("Liczba jednostek transakcji")
-            );
-            const wanju = normalizePlAmount(
-                getValue("WANJU dla transakcji")
-            );
+            const liczbaJU = normalizePlAmount(getValue("Liczba jednostek transakcji"));
+            const wanju = normalizePlAmount(getValue("WANJU dla transakcji"));
 
             rows.push([
                 `"${dataWyceny}"`,
@@ -2374,10 +2536,7 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
             ]);
         });
 
-
-        if (rows.length <= 1) {
-            return alert("Brak danych do eksportu.");
-        }
+        if (rows.length <= 1) return alert("Brak danych do eksportu.");
 
         const csvContent = rows.map(r => r.join(";")).join("\n");
 
@@ -2385,18 +2544,19 @@ function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
             chrome.storage.local.set({
                 [filename]: csvContent
             }, () => {
-                chrome.runtime.sendMessage({
-                    action: "dataSaved"
-                });
-                chrome.runtime.sendMessage({
-                    action: "checkStorage"
-                });
+                if (!chrome.runtime.lastError) {
+                    chrome.runtime.sendMessage({
+                        action: "dataSaved"
+                    });
+                    chrome.runtime.sendMessage({
+                        action: "checkStorage"
+                    });
+                }
             });
         });
 
     }, 1500);
 }
-
 
 // 📋 Wyciągnięcie danych z tabeli investors i zapisanie jako CSV
 
@@ -2431,22 +2591,26 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
     const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
     // 1. Otwieramy szczegóły – NOWA STRUKTURA
-    transactions.forEach(tr => {
-        const toggleBtn = tr.querySelector("button.nx-button--tertiary");
-        const nextRow = tr.nextElementSibling;
-        const detailsAreVisible = nextRow && nextRow.className.includes("history-table__details");
-
-        if (!detailsAreVisible) {
-            if (toggleBtn) {
-                toggleBtn.click();
-            } else {
-                tr.dispatchEvent(new MouseEvent("click", {
-                    bubbles: true
-                }));
-            }
-        }
-    });
-
+    const isDetailsRow = (tr) => {
+    if (!tr) return false;
+    if (tr.classList?.contains("nx-table-row__details")) return true;
+    if ((tr.className || "").includes("history-table__details")) return true;
+    if (tr.querySelector?.("app-transaction-details")) return true;
+    if (tr.querySelector?.("app-property")) return true;
+    return false;
+};
+const openDetails = (tr) => {
+    const toggleBtn =
+        tr.querySelector("button.nx-button--tertiary") ||
+        tr.querySelector("button.nx-button") ||
+        tr.querySelector("a.nx-button--tertiary") ||
+        tr.querySelector("a.nx-button");
+    if (toggleBtn) { toggleBtn.click(); return; }
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+};
+transactions.forEach((tr) => {
+    if (!isDetailsRow(tr.nextElementSibling)) openDetails(tr);
+});
     // 2. Czekamy aż Angular załaduje DOM
     setTimeout(() => {
 
@@ -2455,17 +2619,22 @@ function extractAndSaveTable_investors(STORAGE_KEYS_ALL) {
 
             const detailsTr = tr.nextElementSibling;
 
-            if (!detailsTr || !detailsTr.className.includes("history-table__details")) return;
+            if (!isDetailsRow(detailsTr)) return;
 
             // NOWY PARSER PROPERTIES
             const getValue = (label) => {
                 const props = detailsTr.querySelectorAll("app-property");
                 for (const p of props) {
-                    const spanLabel = p.querySelector("span.label");
-                    if (spanLabel && spanLabel.textContent.trim() === label) {
-                        const value = p.querySelector("p.nx-heading--subsection-xsmall");
-                        return value?.textContent?.trim() || "";
-                    }
+                    const lbl = p.querySelector("span.label");
+                    if (!lbl || lbl.textContent.trim() !== label) continue;
+                    return (
+                        p.querySelector("p.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+                        p.querySelector("p")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall.ng-star-inserted")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+                        p.querySelector("h4.ng-star-inserted")?.textContent?.trim() ||
+                        ""
+                    );
                 }
                 return "";
             };
@@ -2600,26 +2769,18 @@ function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
 
             // ✅ NOWA logika jak Paribas: app-property -> span.label + (p / h4 / cokolwiek tekstowego)
             const getValue = (label) => {
-                const props = detailsRoot.querySelectorAll("app-property");
+                const props = detailsTr.querySelectorAll("app-property");
                 for (const p of props) {
                     const lbl = p.querySelector("span.label");
-                    if (!lbl) continue;
-
-                    const lblTxt = lbl.textContent?.trim() || "";
-                    if (lblTxt !== label) continue;
-
-                    // Paribas: <p>
-                    const pVal =
-                        p.querySelector("p")?.textContent?.trim() ||
-                        // Investors: <p class="nx-heading--subsection-xsmall">
+                    if (!lbl || lbl.textContent.trim() !== label) continue;
+                    return (
                         p.querySelector("p.nx-heading--subsection-xsmall")?.textContent?.trim() ||
-                        // Santander (stare UI): <h4 class="ng-star-inserted">
+                        p.querySelector("p")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall.ng-star-inserted")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall")?.textContent?.trim() ||
                         p.querySelector("h4.ng-star-inserted")?.textContent?.trim() ||
-                        // fallback: dowolny element tekstowy obok
-                        p.textContent?.replace(lblTxt, "").trim() ||
-                        "";
-
-                    return pVal;
+                        ""
+                    );
                 }
                 return "";
             };
@@ -2695,19 +2856,26 @@ function extractAndSaveTable_milenium(STORAGE_KEYS_ALL) {
     const transactions = Array.from(document.querySelectorAll("tr.nx-table-row.table__tr"));
 
     // 1. Klikamy tylko, jeśli szczegóły nie są jeszcze widoczne
-    transactions.forEach(tr => {
-        const toggleBtn = tr.querySelector("a.nx-button");
-        const nextRow = tr.nextElementSibling;
-        const detailsAreVisible = nextRow?.classList.contains("nx-table-row__details");
-
-        if (toggleBtn && !detailsAreVisible) {
-            toggleBtn.click();
-        } else if (!toggleBtn && !detailsAreVisible) {
-            tr.dispatchEvent(new MouseEvent("click", {
-                bubbles: true
-            }));
-        }
-    });
+    const isDetailsRow = (tr) => {
+    if (!tr) return false;
+    if (tr.classList?.contains("nx-table-row__details")) return true;
+    if ((tr.className || "").includes("history-table__details")) return true;
+    if (tr.querySelector?.("app-transaction-details")) return true;
+    if (tr.querySelector?.("app-property")) return true;
+    return false;
+};
+const openDetails = (tr) => {
+    const toggleBtn =
+        tr.querySelector("button.nx-button--tertiary") ||
+        tr.querySelector("button.nx-button") ||
+        tr.querySelector("a.nx-button--tertiary") ||
+        tr.querySelector("a.nx-button");
+    if (toggleBtn) { toggleBtn.click(); return; }
+    tr.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+};
+transactions.forEach((tr) => {
+    if (!isDetailsRow(tr.nextElementSibling)) openDetails(tr);
+});
 
     // 2. Poczekaj, aż wszystkie szczegóły się pojawią
     setTimeout(() => {
@@ -2715,16 +2883,21 @@ function extractAndSaveTable_milenium(STORAGE_KEYS_ALL) {
             const typOswiadczenia = tr.children[2]?.textContent.trim() || "";
 
             const detailsTr = tr.nextElementSibling;
-            if (!detailsTr || !detailsTr.querySelector("app-transaction-details")) return;
+            if (!isDetailsRow(detailsTr)) return;
 
             const getValue = (label) => {
-                const labels = detailsTr.querySelectorAll("span.label");
-                for (const span of labels) {
-                    if (span.textContent.trim() === label) {
-                        const h4 = span.closest(".nx-grid__row")?.querySelector("h4.ng-star-inserted");
-                        return h4?.textContent?.trim() || "";
-
-                    }
+                const props = detailsTr.querySelectorAll("app-property");
+                for (const p of props) {
+                    const lbl = p.querySelector("span.label");
+                    if (!lbl || lbl.textContent.trim() !== label) continue;
+                    return (
+                        p.querySelector("p.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+                        p.querySelector("p")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall.ng-star-inserted")?.textContent?.trim() ||
+                        p.querySelector("h4.nx-heading--subsection-xsmall")?.textContent?.trim() ||
+                        p.querySelector("h4.ng-star-inserted")?.textContent?.trim() ||
+                        ""
+                    );
                 }
                 return "";
             };
@@ -2828,9 +3001,9 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
         rowDivs.forEach(div => {
             const cells = div.querySelectorAll(":scope > div");
             if (cells.length >= 4) {
-                const data   = cells[0].textContent.trim();
+                const data = cells[0].textContent.trim();
                 const rodzaj = cells[1].textContent.trim();
-                const uwaga  = cells[2].textContent.trim();
+                const uwaga = cells[2].textContent.trim();
                 const kwotaCell = cells[3];
                 const kursEl = kwotaCell.querySelector("p");
                 const kurs = kursEl ? kursEl.textContent.trim() : "";
@@ -2846,10 +3019,16 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
     }
 
     chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
-        chrome.storage.local.set({ [filename]: csvContent }, () => {
+        chrome.storage.local.set({
+            [filename]: csvContent
+        }, () => {
             if (!chrome.runtime.lastError) {
-                chrome.runtime.sendMessage({ action: "dataSaved" });
-                chrome.runtime.sendMessage({ action: "checkStorage" });
+                chrome.runtime.sendMessage({
+                    action: "dataSaved"
+                });
+                chrome.runtime.sendMessage({
+                    action: "checkStorage"
+                });
             }
         });
     });
