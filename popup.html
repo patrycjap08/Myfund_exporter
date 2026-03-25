@@ -16,21 +16,21 @@
         }
 
         html, body {
-    margin: 0;
-    padding: 0;
-    width: 360px;
-    height: 100%;
-    overflow: hidden; /* tylko .content-section będzie scrollować */
-    box-sizing: border-box;
-}
+          margin: 0;
+          padding: 0;
+          width: 360px;
+          min-height: 490px;
+          overflow: hidden;
+          box-sizing: border-box;
+      }
 
-body {
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background-color: #fff;
-}
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff;
+        }
 
 
         .icon {
@@ -64,7 +64,8 @@ body {
         #bybitExtendedInfo,
         #instructionsBoxa,
         #instructionsBoxb,
-        #grayBoxb {
+        #grayBoxb,
+        #grayBoxc {
             margin-bottom: 4px;
             background-color: var(--Neutral400);
             background-image: url("info.png");
@@ -182,7 +183,7 @@ body {
         #bybitUnifiedBtn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            pointer-events: none;
+            pointer-events: auto;
         }
 
         .BUTTON:hover,
@@ -190,31 +191,7 @@ body {
             background-color: var(--Neutral800);
         }
 
-        .tooltip-container {
-            display: inline-block;
-        }
-
-        .tooltip-text {
-            position: fixed;
-            /* <- kluczowe */
-            left: 50%;
-            bottom: 75px;
-            /* tuż nad ikoną (dostosuj w razie potrzeby) */
-            transform: translateX(-50%);
-            background-color: #333;
-            color: #fff;
-            text-align: left;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            width: 300px;
-            max-width: 90%;
-            visibility: hidden;
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 999;
-            white-space: normal;
-        }
+        
 
 
         .tooltip-text a {
@@ -228,16 +205,18 @@ body {
             /* np. złoty po najechaniu – możesz zmienić na inny */
         }
 
-        .tooltip-container {
-    display: inline-block;
-    position: relative; /* DODANE */
+.tooltip-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tooltip-text {
-    position: absolute;           /* BYŁO fixed */
+    position: absolute;
+    bottom: calc(100% + 6px);
     left: 50%;
-    bottom: 75px;
-    transform: translateX(-50%);
+    transform: translateX(calc(-55%));
     background-color: #333;
     color: #fff;
     text-align: left;
@@ -245,15 +224,22 @@ body {
     border-radius: 5px;
     font-size: 12px;
     width: 300px;
-    max-width: 90%;
+    max-width: 90vw;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.3s;
-    z-index: 999;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 2000;
     white-space: normal;
+    pointer-events: auto;
 }
 
-        
+.tooltip-container:hover .tooltip-text,
+.tooltip-text:hover {
+    visibility: visible;
+    opacity: 1;
+}
+
+
 
         .mini-icon {
             width: 30px;
@@ -292,25 +278,25 @@ body {
 
         /* Stały pasek na dole */
         #bottomBar {
-          
-    height: 70px;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #fff;
-    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
 
-    height: 70px;
-    z-index: 1000;
+            height: 70px;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #fff;
+            box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
 
-    padding: 4px 0;
-    box-sizing: border-box;
-}
+            height: 70px;
+            z-index: 1000;
+
+            padding: 4px 0;
+            box-sizing: border-box;
+        }
 
 
         /* Wyrównanie ikon w poziomie */
@@ -331,61 +317,54 @@ body {
         }
 
         /* Dodatkowy margines, żeby treść nie chowała się pod paskiem */
-    
 
-
-
-
-        .tooltip-text::after {
-            left: auto;
-            right: 0;
-        }
 
         .top-section {
-          
-    height: 200px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background-color: #fff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 1000;
-    padding-top: 10px;
-    padding-bottom: 5px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 
-    height: 200px;
-    box-sizing: border-box;
-}
+            height: 200px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1000;
+            padding-top: 10px;
+            padding-bottom: 5px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+
+            height: 200px;
+            box-sizing: border-box;
+        }
 
         .content-section {
-    position: absolute;
-    top: 200px;   /* = wysokość top-section */
-    left: 0;
-    right: 0;
-    bottom: 70px; /* = wysokość bottomBar */
+            position: absolute;
+            top: 200px;
+            /* = wysokość top-section */
+            left: 0;
+            right: 0;
+            bottom: 70px;
+            /* = wysokość bottomBar */
 
-    width: 100%;
-    box-sizing: border-box;
+            width: 100%;
+            box-sizing: border-box;
 
-    padding: 10px;
-    padding-bottom: 10px;
+            padding: 10px;
+            padding-bottom: 10px;
 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
 
-    overflow-y: auto;
-    scrollbar-gutter: stable both-edges;
-}
+            overflow-y: auto;
+            scrollbar-gutter: stable both-edges;
+        }
 
-body::-webkit-scrollbar {
-    display: none;
-}
-
+        body::-webkit-scrollbar {
+            display: none;
+        }
     </style>
 </head>
 
@@ -400,6 +379,7 @@ body::-webkit-scrollbar {
         <div id="instructionsBoxa" style="display: none;"></div>
         <div id="grayBoxa">Aby wyeksportować dane z platformy Finax, wejdź w szczegóły transakcji swojego rachunku. <b> Przegląd rachunków -> Szczegóły konta -> Przegląd transakcji </b></div>
         <div id="grayBoxb">Aby wyeksportować dane z platformy Mbank, upewnij się, że jestś na właświwym profilu, a następnie przejdź do histori inwestycji: <b>Produkty -> Inwestycje -> Wszystkie -> Twój portfel inwestycyjny -> Historia</b></div>
+        <div id="grayBoxc">Aby wyeksportować dane z platformy pekao24 przejdź do historii inwestycji, a następnie wybierz fundusze inwestycyjne</div>
         <div id="instructionsBoxb">Jeśli chcesz pobrać dane kupna i sprzedaży akcji, przejdź do zakładki <b>Kupno/Sprzedaż</b>.<br>Jeżeli chcesz pobrać dane operacji na koncie, przejdź do zakładki <b>Operacje</b>.</div>
         <div id="PPKWarningBox"><b>Zaloguj się i przejdź do widoku transakcji które chcesz zaimportować. Nie musisz rozwijać szczegułów transakcji, wtyczka zrobi to za Ciebie.</b></div>
         <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
@@ -507,13 +487,21 @@ body::-webkit-scrollbar {
             <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
             <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
             <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
+            <img id="pekaoIcon" class="icon" src="pekao_icon.png" title="Pekao" style="display: none;">
             <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
             <img id="bybitIcon" class="icon" src="bybit_icon.png" title="Bybit" style="display: none;">
 
             <div class="tooltip-container">
                 <img class="icon" src="info-icon.png" id="customInfoIcon">
                 <span class="tooltip-text">
-                    Wejdź na stronę jednej z obsługiwanych platform (...).
+                    Wejdź na stronę jednej z obsługiwanych platform (np. Finax, mBank, BNP Paribas, Investors, Santander, Millenium) i otwórz wtyczkę.<br>
+                    Na podstronie z operacjami kliknij „Pobierz dane”, aby zapisać je tymczasowo w pamięci przeglądarki.
+                    Wtyczka przekieruje cię do odpowiedniej podstrony MyFund.<br>
+                    Wybierz portfel, otwórz ponownie wtyczkę i kliknij: 
+                    „Wklej pobrane transakcje” lub „Wklej pobrane operacje” – zależnie od typu danych.<br><br>
+                    Więcej informacji znajdziesz na forum w wątkach dotyczących importu z
+                    <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5332" target="_blank">Finax</a> oraz 
+                    <a href="https://myfund.pl/index.php?raport=forum&forum=2&topic=5346" target="_blank">mBank</a>.
                 </span>
             </div>
         </div>
