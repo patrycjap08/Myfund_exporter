@@ -442,11 +442,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return Number.isFinite(num) ? num : "";
     };
 
-    // Dla kolumn z wartością + walutą (np. "10 005,60 PLN")
     const getValueWithCurrency = (td) => {
         if (!td) return "";
         const currency = (td.querySelector(".col-text-addon")?.textContent || "").trim();
-        // weź tekst bez elementu .col-text-addon
         const clone = td.cloneNode(true);
         clone.querySelectorAll(".col-text-addon").forEach(el => el.remove());
         const text = clone.textContent.trim();
@@ -455,37 +453,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         return numeric || text;
     };
 
-    // Sprawdź czy szczegóły są otwarte — szukamy przycisku "Zamknij"
     const isOpen = (tr) => {
         const btn = tr.querySelector("td.col-show-instrument-history button");
         if (!btn) return false;
         return btn.textContent.trim().toLowerCase().includes("zamknij");
     };
 
-    // Otwórz szczegóły — kliknij przycisk w kolumnie col-show-instrument-history
     const openDetails = (tr) => {
         const btn = tr.querySelector("td.col-show-instrument-history button");
         if (btn) btn.click();
     };
 
-    // Pobierz wiersze główne (te z kolumną col-show-instrument-history)
+    // ✅ POPRAWKA 1: szukamy wierszy z col-show-instrument-history
     const mainRows = Array.from(document.querySelectorAll(
-        "tbody.ui-table-tbody > tr"
+        "tbody.ui-table-tbody > tr, p-table tbody.p-datatable-tbody > tr"
     )).filter(tr => tr.querySelector("td.col-show-instrument-history"));
 
     if (!mainRows.length) {
         return alert("Nie znaleziono wierszy historii Noble. Upewnij się, że jesteś na stronie historii inwestycji.");
     }
 
-    // Otwórz szczegóły dla wszystkich wierszy które są zamknięte
     mainRows.forEach(tr => {
         if (!isOpen(tr)) openDetails(tr);
     });
 
-    // Poczekaj aż PrimeNG załaduje wiersze szczegółów
     setTimeout(() => {
         mainRows.forEach(mainRow => {
-            // Papier i Emitent z wiersza głównego
+            // ✅ POPRAWKA 2: Emitent — szukamy td.col-issuer w bieżącym wierszu
             const papier =
                 mainRow.querySelector("td.col-instrument .name")?.textContent.trim() ||
                 mainRow.querySelector("td.col-instrument label")?.textContent.trim() ||
@@ -493,16 +487,33 @@ document.addEventListener("DOMContentLoaded", async () => {
             const emitent =
                 mainRow.querySelector("td.col-issuer")?.textContent.trim() || "";
 
-            // Wiersz szczegółów to następny <tr> który zawiera detailEntries
-            const detailRow = mainRow.nextElementSibling;
+            // ✅ POPRAWKA 3: szukamy wiersza ze szczegółami przez closest tbody
+            // zamiast nextElementSibling (może być kilka tr bez detailEntries między nimi)
+            const tbody = mainRow.closest("tbody");
+            if (!tbody) return;
+
+            const allTrs = Array.from(tbody.querySelectorAll(":scope > tr"));
+            const mainRowIndex = allTrs.indexOf(mainRow);
+
+            // Szukamy najbliższego następnego wiersza zawierającego .detailEntries
+            let detailRow = null;
+            for (let i = mainRowIndex + 1; i < allTrs.length; i++) {
+                if (allTrs[i].querySelector(".detailEntries")) {
+                    detailRow = allTrs[i];
+                    break;
+                }
+                // jeśli natrafimy na inny główny wiersz — przerywamy
+                if (allTrs[i].querySelector("td.col-show-instrument-history")) break;
+            }
+
             if (!detailRow) return;
 
             const detailEntries = detailRow.querySelector(".detailEntries");
             if (!detailEntries) return;
 
-            // Wiersze transakcji w tabeli szczegółów
+            // ✅ POPRAWKA 4: poprawny selektor tbody w nowej wersji PrimeNG
             const detailTrs = Array.from(detailEntries.querySelectorAll(
-                "tbody.ui-table-tbody > tr"
+                "tbody tr, tbody.p-datatable-tbody tr"
             ));
 
             detailTrs.forEach(row => {
@@ -521,7 +532,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const brutto =
                     getValueWithCurrency(row.querySelector("td.col-gross-value"));
 
-                if (!data && !rodzaj) return; // pomiń puste wiersze
+                if (!data && !rodzaj) return;
 
                 rows.push([
                     data,
@@ -543,7 +554,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const csvContent = rows.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
-                // Tekstowe kolumny w cudzysłowach: nagłówek, papier, rodzaj, netto, brutto, emitent
                 if (rowIndex === 0 || colIndex === 0 || colIndex === 1 ||
                     colIndex === 2 || colIndex === 6 || colIndex === 7 || colIndex === 8) {
                     return `"${String(cell).replace(/"/g, '""')}"`;
@@ -563,7 +573,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     }, 1000);
 }
-
     // 📤 Wklejanie operacji santander do formularza MyFund
 
     function insertTransactions_santander(csvContent) {
