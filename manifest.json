@@ -19,7 +19,13 @@
     "https://online24.investors.pl/*",
     "https://online.santander-ppk.pl/*",
     "https://mynsapp.noblesecurities.pl/*",
-    "https://*.bybit.com/*"           
+    "https://*.bybit.com/*",     
+    "*://*.pekao.com.pl/*",
+    "*://*.pekao24.pl/*",
+    "*://*.pekao24.pl/*",
+    "*://*.pekao.com/*",
+    "https://www.analizy.pl/*",
+    "https://analizy.pl/*"
     ],
     "background": {
       "service_worker": "background.js"
@@ -37,7 +43,11 @@
       "https://online24.investors.pl/*",
       "https://online.santander-ppk.pl/*",
       "https://mynsapp.noblesecurities.pl/*",
-      "https://*.bybit.com/*"
+      "https://*.bybit.com/*",
+      "*://*.pekao.com.pl/*",
+      "*://*.pekao24.pl/*",
+      "https://www.analizy.pl/*",
+      "https://analizy.pl/*"
     ],
     "js": ["content.js"]
   }

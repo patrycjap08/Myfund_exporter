@@ -60,6 +60,7 @@
         }
 
         #grayBoxa,
+        #grayBoxd,
         #bybitInfoBox,
         #bybitExtendedInfo,
         #instructionsBoxa,
@@ -216,7 +217,7 @@
     position: absolute;
     bottom: calc(100% + 6px);
     left: 50%;
-    transform: translateX(calc(-55%));
+    transform: translateX(calc(-75%));
     background-color: #333;
     color: #fff;
     text-align: left;
@@ -380,6 +381,7 @@
         <div id="grayBoxa">Aby wyeksportować dane z platformy Finax, wejdź w szczegóły transakcji swojego rachunku. <b> Przegląd rachunków -> Szczegóły konta -> Przegląd transakcji </b></div>
         <div id="grayBoxb">Aby wyeksportować dane z platformy Mbank, upewnij się, że jestś na właświwym profilu, a następnie przejdź do histori inwestycji: <b>Produkty -> Inwestycje -> Wszystkie -> Twój portfel inwestycyjny -> Historia</b></div>
         <div id="grayBoxc">Aby wyeksportować dane z platformy pekao24 przejdź do historii inwestycji, a następnie wybierz fundusze inwestycyjne</div>
+        <div id="grayBoxd">Aby wyeksportować dane z analizy.pl, otwórz stronę, na której znajdują się <b>transakcje</b>.</div>
         <div id="instructionsBoxb">Jeśli chcesz pobrać dane kupna i sprzedaży akcji, przejdź do zakładki <b>Kupno/Sprzedaż</b>.<br>Jeżeli chcesz pobrać dane operacji na koncie, przejdź do zakładki <b>Operacje</b>.</div>
         <div id="PPKWarningBox"><b>Zaloguj się i przejdź do widoku transakcji które chcesz zaimportować. Nie musisz rozwijać szczegułów transakcji, wtyczka zrobi to za Ciebie.</b></div>
         <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
@@ -490,6 +492,7 @@
             <img id="pekaoIcon" class="icon" src="pekao_icon.png" title="Pekao" style="display: none;">
             <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
             <img id="bybitIcon" class="icon" src="bybit_icon.png" title="Bybit" style="display: none;">
+            <img id="analizyPlIcon" class="icon" src="analizy_icon.png" title="Analizy.pl" style="display: none;">
 
             <div class="tooltip-container">
                 <img class="icon" src="info-icon.png" id="customInfoIcon">

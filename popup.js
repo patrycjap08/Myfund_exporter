@@ -14,7 +14,8 @@ const STORAGE_KEYS = {
         "santander_export.csv",
         "noble_export.csv",
         "bybit_export.csv",
-        "pekao_ikze_export.csv"
+        "pekao_ikze_export.csv",
+        "analizy_pl_export.csv"
     ],
     EXCEPT_BYBIT: [
         "finax_transakcje.csv",
@@ -25,7 +26,8 @@ const STORAGE_KEYS = {
         "investors_export.csv",
         "santander_export.csv",
         "noble_export.csv",
-        "pekao_ikze_export.csv"
+        "pekao_ikze_export.csv",
+        "analizy_pl_export.csv" 
     ]
 };
 document.addEventListener("DOMContentLoaded", async () => {
@@ -720,6 +722,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         tryClick.attempts = 0;
         setTimeout(tryClick, 300);
     }
+    
+    function insertTransactions_analizyPl(csvContent) {
+    const select = document.querySelector('select#bank');
+    if (select) {
+        select.value = 'analizyPl';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+    const file = new File([csvBlob], "analizy_pl_export.csv", { type: "text/csv" });
+
+    const input = document.querySelector('input[type="file"]#imagefile');
+    if (!input) { alert("Nie znaleziono pola do przesłania pliku."); return; }
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const tryClick = () => {
+        const btn = document.querySelector('#submit1');
+        if (btn) { btn.click(); }
+        else if (tryClick.attempts < 5) { tryClick.attempts++; setTimeout(tryClick, 200); }
+        else { alert("Nie znaleziono przycisku 'Pobierz z pliku'."); }
+    };
+    tryClick.attempts = 0;
+    setTimeout(tryClick, 300);
+}
+
     // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
     function updateActionButtons() {
@@ -739,7 +770,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 "santander_export.csv",
                 "noble_export.csv",
                 "bybit_export.csv",
-                "pekao_ikze_export.csv"
+                "pekao_ikze_export.csv",
+                "analizy_pl_export.csv" 
             ], (data) => {
                 actionContainer.innerHTML = "";
 
@@ -747,7 +779,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
                     warningContainer.style.display = "block";
                 }
-                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24")) {
+                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24") || tabUrl.includes("analizy.pl")) {
                     if (data["bybit_export.csv"] && !tabUrl.includes("sourcePlugin=ByBitWtyczka")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
@@ -828,6 +860,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                         btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=PekaoTFI", "_blank");
                         actionContainer.appendChild(btn);
                     }
+                    if (data["analizy_pl_export.csv"] && !tabUrl.includes("sourcePlugin=analizyPl")) {
+    const btn = document.createElement("button");
+    btn.className = "BUTTON";
+    btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
+    btn.style.display = "block";
+    btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=analizyPl", "_blank");
+    actionContainer.appendChild(btn);
+}
                     if (tabUrl.includes("raport=ImportPrzeplywowCrypto")) {
                         if (data["bybit_export.csv"]) {
                             const pasteBtn = document.createElement("button");
@@ -911,6 +951,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                             };
                             actionContainer.appendChild(pasteBtn);
                         }
+                        if (data["analizy_pl_export.csv"]) {
+    const pasteBtn = document.createElement("button");
+    pasteBtn.className = "BUTTON";
+    pasteBtn.style.display = "block";
+    pasteBtn.textContent = "Wklej pobrane transakcje";
+    pasteBtn.onclick = () => {
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            function: insertTransactions_analizyPl,
+            args: [data["analizy_pl_export.csv"]]
+        });
+    };
+    actionContainer.appendChild(pasteBtn);
+}
                     }
                     if (tabUrl.includes("raport=ImportOperacjiPPK")) {
                         if (data["paribas_export.csv"]) {
@@ -1065,14 +1119,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (!tabUrl.includes("finax.eu") && !tabUrl.includes("myfund.pl") && !tabUrl.includes("mbank.pl") && !tabUrl.includes("tfi.bnpparibas.pl") &&
-        !tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("24.investors.pl") && !tabUrl.includes('online.santander-ppk') && !tabUrl.includes("bybit.com") && !tabUrl.includes('mynsapp.noblesecurities') && !tabUrl.includes('pekao24')) {
+        !tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("24.investors.pl") && !tabUrl.includes('online.santander-ppk') && !tabUrl.includes("bybit.com") && !tabUrl.includes('mynsapp.noblesecurities') && !tabUrl.includes('pekao24') && !tabUrl.includes("analizy.pl")) {
         const box = document.getElementById("instructionsBoxa");
         box.innerHTML = `Na ten moment wtyczka obsługuje eksport danych wyłącznie ze stron: 
         <a href="https://finax.eu" target="_blank"><b>Finax.eu</b></a>,
         <a href="https://mbank.pl" target="_blank"><b>SFI mBank.pl</b></a>,
     <a href="https://www.bybit.com" target="_blank"><b>Bybit.com</b></a>,
         <a href="https://mynsapp.noblesecurities.pl/" target="_blank"><b>Noblesecurities.pl</b></a>,
-        <a href=" https://www.pekao24.pl" target="_blank"><b>pekao24.pl</b></a>,
+        <a href="https://www.pekao24.pl" target="_blank"><b>pekao24.pl</b></a>,
+        <a href="https://analizy.pl" target="_blank"><b>analizy.pl</b></a>
         a także danych PPK z banków:
         <a href="https://sti24.tfi.bnpparibas.pl" target="_blank"><b>BNP Paribas</b></a>, 
         <a href="https://millenniumtfi.sti24.pl" target="_blank"><b>Millenium</b></a>,
@@ -1167,6 +1222,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("dateWarningBox").style.display = "block";
         exportBtn.style.display = "block";
     }
+    if (tabUrl.includes("analizy.pl") && !tabUrl.includes("walletTransactions")) {
+    document.getElementById("grayBoxd").style.display = "block";
+    exportBtn.style.display = "none";
+} else if (tabUrl.includes("analizy.pl")) {
+    document.getElementById("dateWarningBox").style.display = "block";
+    exportBtn.style.display = "block";
+}
 
     if (tabUrl.includes("pekao24") && !tabUrl.includes("historia/fundusze-inwestycyjne/transakcje") && !tabUrl.includes("historia:fundusze-inwestycyjne:transakcje")) {
         document.getElementById("grayBoxc").style.display = "block";
@@ -1279,7 +1341,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             funcToRun = extractAndSaveTable_noble;
         } else if (tabUrl.includes("pekao24")) {
             funcToRun = extractAndSaveTable_pekaoIkze;
-        }
+        } else if (tabUrl.includes("analizy.pl")) {
+    funcToRun = extractAndSaveTable_analizyPl;
+}
 
         if (funcToRun) {
             chrome.scripting.executeScript({
@@ -3244,6 +3308,94 @@ async function extractAndSaveTable_pekaoIkze(STORAGE_KEYS_ALL) {
     });
 }
 
+function extractAndSaveTable_analizyPl(STORAGE_KEYS_ALL) {
+    const filename = "analizy_pl_export.csv";
+    const headers = ["Data", "Typ transakcji", "Nazwa funduszu", "Kod funduszu", "Cena", "Waluta", "Liczba jednostek"];
+    const rows = [headers];
+
+    const containers = Array.from(
+        document.querySelectorAll(".walletTransaction[data-id]")
+    );
+
+    if (!containers.length) {
+        return alert("Nie znaleziono transakcji. Upewnij się, że jesteś na zakładce 'Transakcje' w portfelu.");
+    }
+
+    containers.forEach(container => {
+        // Kod funduszu z data-id="fund_XXX"
+        const dataId = container.getAttribute("data-id") || "";
+        const kod = dataId.replace("fund_", "");
+
+        // Nazwa funduszu
+        const nazwa = container.querySelector(".productName")?.textContent?.trim() || "";
+
+        // Data
+        const dataEl = container.querySelector(".W_transaction_cell_date .productBigText");
+        const data = dataEl?.textContent?.trim() || "";
+
+        // Typ transakcji
+        const typEl = container.querySelector(".W_transaction_cell_kind .productBigText");
+        const typ = typEl?.textContent?.trim() || "";
+
+        // Kwota / waluta / liczba JU / cena JU — ze span.iconIWrap title
+        const tooltipEl = container.querySelector(".W_transaction_cell_Value .iconIWrap");
+        const tooltipTitle = tooltipEl?.getAttribute("title") || "";
+
+        // title format: " Liczba J.U.: -341,0176 <br></span> Wartość J.U.\n: 147,36 PLN"
+        let liczbaJU = "";
+        let cena = "";
+        let waluta = "";
+
+        const matchLiczba = tooltipTitle.match(/Liczba J\.U\.\s*:\s*([+-]?\d[\d\s,\.]*)/i);
+        if (matchLiczba) {
+            liczbaJU = matchLiczba[1]
+                .replace(/\s+/g, "")
+                .replace(",", ".")
+                .replace(/^[+-]/, ""); // bez znaku
+        }
+
+        const matchCena = tooltipTitle.match(/Wartość J\.U\.\s*[:\n\r]+\s*([+-]?\d[\d\s,\.]*)\s*([A-Z]{3})/i);
+        if (matchCena) {
+            cena = matchCena[1].replace(/\s+/g, "").replace(",", ".");
+            waluta = matchCena[2];
+        }
+
+        // Fallback waluta ze span.investIcons z PLN/EUR itd.
+        if (!waluta) {
+            const icons = Array.from(container.querySelectorAll(".investIcons"));
+            for (const ico of icons) {
+                const t = ico.textContent.trim();
+                if (/^[A-Z]{3}$/.test(t)) { waluta = t; break; }
+            }
+        }
+
+        if (!data && !nazwa) return;
+
+        rows.push([
+            `"${data}"`,
+            `"${typ}"`,
+            `"${nazwa}"`,
+            `"${kod}"`,
+            cena,
+            `"${waluta}"`,
+            liczbaJU
+        ]);
+    });
+
+    if (rows.length <= 1) return alert("Brak danych do eksportu.");
+
+    const csvContent = rows.map(r => r.join(";")).join("\n");
+
+    chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+        chrome.storage.local.set({ [filename]: csvContent }, () => {
+            if (!chrome.runtime.lastError) {
+                chrome.runtime.sendMessage({ action: "dataSaved" });
+                chrome.runtime.sendMessage({ action: "checkStorage" });
+            }
+        });
+    });
+}
+
 function bybit_extract_depositSpot() {
     const BYBIT_KEY = "bybit_export.csv";
     const SOURCE = "Funding_Deposit";
@@ -4474,6 +4626,7 @@ function updateVisibleIcon() {
     const pekaoIcon = document.getElementById("pekaoIcon");
     const nobleIcon = document.getElementById("nobleIcon");
     const bybitIcon = document.getElementById("bybitIcon");
+    const analizyPlIcon = document.getElementById("analizyPlIcon");
 
     // Domyślnie ukryj obie
     finaxIcon.style.display = "none";
@@ -4485,6 +4638,7 @@ function updateVisibleIcon() {
     pekaoIcon.style.display = "none";
     nobleIcon.style.display = "none";
     bybitIcon.style.display = "none";
+    analizyPlIcon.style.display = "none";
 
     // Sprawdź aktywną zakładkę
     chrome.tabs.query({
@@ -4517,6 +4671,9 @@ function updateVisibleIcon() {
         }
         if (url.includes("noble")) {
             nobleIcon.style.display = "inline-block"
+        } 
+        if (url.includes("analizy.pl")) {
+          analizyPlIcon.style.display = "inline-block";
         } else if (url.includes("pekao")) {
             pekaoIcon.style.display = "inline-block"
         }
@@ -4571,6 +4728,9 @@ document.getElementById("pekaoIcon").addEventListener("click", () => {
     chrome.tabs.create({
         url: " https://www.pekao24.pl"
     });
+});
+document.getElementById("analizyPlIcon").addEventListener("click", () => {
+    chrome.tabs.create({ url: "https://www.analizy.pl" });
 });
 document.getElementById("bybitIcon").addEventListener("click", () => {
     chrome.tabs.create({
