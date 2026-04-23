@@ -779,7 +779,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
                     warningContainer.style.display = "block";
                 }
-                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24") || tabUrl.includes("analizy.pl")) {
+                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24") || tabUrl.includes("epekaotfi") || tabUrl.includes("analizy.pl")) {
                     if (data["bybit_export.csv"] && !tabUrl.includes("sourcePlugin=ByBitWtyczka")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
@@ -1081,61 +1081,82 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(() => message.remove(), 3000);
     }
 
-    function showClearMessageOnPage(hasData) {
-        const message = document.createElement("div");
+function showClearMessageOnPage(hasData) {
+    const message = document.createElement("div");
 
-        if (hasData) {
-            message.textContent = "🗑️ Dane zostały usunięte!";
-            Object.assign(message.style, {
-                backgroundColor: "#fff3cd",
-                color: "#856404",
-                border: "2px solid #ffeeba"
-            });
-        } else {
-            message.textContent = "ℹ️ Brak danych do usunięcia.";
-            Object.assign(message.style, {
-                backgroundColor: "#e2e3e5",
-                color: "#383d41",
-                border: "2px solid #d6d8db"
-            });
-        }
-
+    if (hasData) {
+        message.textContent = "🗑️ Dane usunięte";
         Object.assign(message.style, {
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            zIndex: "9999",
-            padding: "16px 24px",
-            borderRadius: "10px",
-            fontWeight: "bold",
-            fontSize: "16px",
-            textAlign: "center",
-            maxWidth: "90%"
+            backgroundColor: "#fff3cd",
+            color: "#856404",
+            border: "2px solid #ffeeba"
         });
-
-        document.body.appendChild(message);
-        setTimeout(() => message.remove(), 3000);
+    } else {
+        message.textContent = "ℹ️ Brak zapisanych danych";
+        Object.assign(message.style, {
+            backgroundColor: "#e2e3e5",
+            color: "#383d41",
+            border: "2px solid #d6d8db"
+        });
     }
 
-    if (!tabUrl.includes("finax.eu") && !tabUrl.includes("myfund.pl") && !tabUrl.includes("mbank.pl") && !tabUrl.includes("tfi.bnpparibas.pl") &&
-        !tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("24.investors.pl") && !tabUrl.includes('online.santander-ppk') && !tabUrl.includes("bybit.com") && !tabUrl.includes('mynsapp.noblesecurities') && !tabUrl.includes('pekao24') && !tabUrl.includes("analizy.pl")) {
-        const box = document.getElementById("instructionsBoxa");
-        box.innerHTML = `Na ten moment wtyczka obsługuje eksport danych wyłącznie ze stron: 
-        <a href="https://finax.eu" target="_blank"><b>Finax.eu</b></a>,
-        <a href="https://mbank.pl" target="_blank"><b>SFI mBank.pl</b></a>,
-    <a href="https://www.bybit.com" target="_blank"><b>Bybit.com</b></a>,
-        <a href="https://mynsapp.noblesecurities.pl/" target="_blank"><b>Noblesecurities.pl</b></a>,
-        <a href="https://www.pekao24.pl" target="_blank"><b>pekao24.pl</b></a>,
-        <a href="https://analizy.pl" target="_blank"><b>analizy.pl</b></a>
-        a także danych PPK z banków:
-        <a href="https://sti24.tfi.bnpparibas.pl" target="_blank"><b>BNP Paribas</b></a>, 
-        <a href="https://millenniumtfi.sti24.pl" target="_blank"><b>Millenium</b></a>,
-        <a href="https://online24.investors.pl" target="_blank"><b>Investors</b></a> i 
-        <a href="https://online.santander-ppk.pl" target="_blank"><b>Santander</b></a> `;
-        box.style.display = "block";
-        exportBtn.style.display = "none";
-    }
+    Object.assign(message.style, {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: "9999",
+        padding: "16px 24px",
+        borderRadius: "10px",
+        fontWeight: "bold",
+        fontSize: "16px",
+        textAlign: "center",
+        maxWidth: "90%"
+    });
+
+    document.body.appendChild(message);
+    setTimeout(() => message.remove(), 3000);
+}
+
+if (
+    !tabUrl.includes("finax.eu") &&
+    !tabUrl.includes("myfund.pl") &&
+    !tabUrl.includes("mbank.pl") &&
+    !tabUrl.includes("tfi.bnpparibas.pl") &&
+    !tabUrl.includes("millenniumtfi.sti24") &&
+    !tabUrl.includes("24.investors.pl") &&
+    !tabUrl.includes("online.santander-ppk") &&
+    !tabUrl.includes("bybit.com") &&
+    !tabUrl.includes("mynsapp.noblesecurities") &&
+    !tabUrl.includes("pekao24") &&
+    !tabUrl.includes("epekaotfi.pl") &&
+    !tabUrl.includes("analizy.pl")
+) {
+    const box = document.getElementById("instructionsBoxa");
+    box.innerHTML = `
+        <div style="font-size: 13px; line-height: 1.3;">
+            <p style="margin: 0 0 4px 0;">Wtyczka obsługuje eksport danych ze stron:</p>
+            <ul style="margin: 0 0 6px 18px; padding: 0;">
+                <li><a href="https://finax.eu" target="_blank"><b>Finax.eu</b></a></li>
+                <li><a href="https://mbank.pl" target="_blank"><b>SFI mBank.pl</b></a></li>
+                <li><a href="https://www.bybit.com" target="_blank"><b>Bybit.com</b></a></li>
+                <li><a href="https://mynsapp.noblesecurities.pl/" target="_blank"><b>Noble Securities</b></a></li>
+                <li><a href="https://www.pekao24.pl" target="_blank"><b>Pekao24.pl</b></a></li>
+                <li><a href="https://analizy.pl" target="_blank"><b>Analizy.pl</b></a></li>
+            </ul>
+
+            <p style="margin: 0 0 4px 0;">PPK z banków:</p>
+            <ul style="margin: 0 0 0 18px; padding: 0;">
+                <li><a href="https://sti24.tfi.bnpparibas.pl" target="_blank"><b>BNP Paribas</b></a></li>
+                <li><a href="https://millenniumtfi.sti24.pl" target="_blank"><b>Millennium</b></a></li>
+                <li><a href="https://online24.investors.pl" target="_blank"><b>Investors</b></a></li>
+                <li><a href="https://online.santander-ppk.pl" target="_blank"><b>Santander</b></a></li>
+            </ul>
+        </div>
+    `;
+    box.style.display = "block";
+    exportBtn.style.display = "none";
+}
     // BYBIT – informacja + 2 przyciski (aktywny zależnie od URL)
     if (tabUrl.includes("bybit.com")) {
         // referencje
@@ -1339,7 +1360,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             funcToRun = extractAndSaveTable_santander;
         } else if (tabUrl.includes("noblesecurities")) {
             funcToRun = extractAndSaveTable_noble;
-        } else if (tabUrl.includes("pekao24")) {
+        } else if (tabUrl.includes("pekao24") || tabUrl.includes("epekaotfi")) {
             funcToRun = extractAndSaveTable_pekaoIkze;
         } else if (tabUrl.includes("analizy.pl")) {
     funcToRun = extractAndSaveTable_analizyPl;
@@ -1462,7 +1483,37 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     });
 
-
+clearDataIcon.addEventListener("click", () => {
+    const hasData = clearDataIcon.dataset.hasData === "true";
+    if (hasData) {
+        chrome.storage.local.remove(STORAGE_KEYS.ALL, () => {
+            if (!chrome.runtime.lastError) {
+                checkStoredData();
+                actionContainer.innerHTML = "";
+                updateActionButtons();
+                chrome.tabs.query({
+    active: true,
+    currentWindow: true
+}, (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, {
+        action: "showPageMessage",
+        hasData: true
+    }, () => { if (chrome.runtime.lastError) {} });
+});
+            }
+        });
+    } else {
+        chrome.tabs.query({
+    active: true,
+    currentWindow: true
+}, (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, {
+        action: "showPageMessage",
+        hasData: false
+    }, () => { if (chrome.runtime.lastError) {} });
+});
+    }
+});
     // 🔔 Po zapisaniu danych: pokaż komunikat i odśwież przyciski
 
     chrome.runtime.onMessage.addListener((request) => {
@@ -4674,7 +4725,11 @@ function updateVisibleIcon() {
         } 
         if (url.includes("analizy.pl")) {
           analizyPlIcon.style.display = "inline-block";
-        } else if (url.includes("pekao")) {
+        } 
+        if (url.includes("epekaotfi")) {
+          pekaoIcon.style.display = "inline-block";
+        }
+        else if (url.includes("pekao")) {
             pekaoIcon.style.display = "inline-block"
         }
     });
@@ -4739,18 +4794,6 @@ document.getElementById("bybitIcon").addEventListener("click", () => {
 });
 
 const clearDataIcon = document.getElementById("clearDataIcon");
-clearDataIcon.addEventListener("click", () => {
-    if (clearDataIcon.dataset.hasData === "true") {
-        chrome.storage.local.remove(STORAGE_KEYS.ALL, () => {
-            if (!chrome.runtime.lastError) {
-                checkStoredData(); // 🔄 Aktualizacja ikony kosza
-                actionContainer.innerHTML = ""; // 🧹 Ukryj przyciski natychmiast
-                updateActionButtons(); // 🔁 Odśwież listę przycisków
-                sendMessageToPage("🗑️ Dane zostały usunięte!");
-            }
-        });
-    }
-});
 
 
 function checkStoredData() {
@@ -4769,35 +4812,3 @@ function checkStoredData() {
 
 checkStoredData();
 
-clearDataIcon.addEventListener("click", () => {
-    const hasData = clearDataIcon.dataset.hasData === "true";
-    if (hasData) {
-        chrome.storage.local.remove(STORAGE_KEYS.ALL, () => {
-            if (!chrome.runtime.lastError) {
-                checkStoredData();
-                actionContainer.innerHTML = "";
-                updateActionButtons();
-                chrome.tabs.query({
-                    active: true,
-                    currentWindow: true
-                }, (tabs) => {
-
-                    chrome.tabs.sendMessage(tabs[0].id, {
-                        action: "showPageMessage",
-                        hasData: true
-                    });
-                });
-            }
-        });
-    } else {
-        chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        }, (tabs) => {
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: "showPageMessage",
-                hasData: false
-            });
-        });
-    }
-});
