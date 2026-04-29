@@ -11,7 +11,7 @@ const STORAGE_KEYS = {
         "milenium_export.csv",
         "paribas_export.csv",
         "investors_export.csv",
-        "santander_export.csv",
+        "erste_export.csv",
         "noble_export.csv",
         "bybit_export.csv",
         "pekao_ikze_export.csv",
@@ -24,7 +24,7 @@ const STORAGE_KEYS = {
         "paribas_export.csv",
         "milenium_export.csv",
         "investors_export.csv",
-        "santander_export.csv",
+        "erste_export.csv",
         "noble_export.csv",
         "pekao_ikze_export.csv",
         "analizy_pl_export.csv" 
@@ -575,9 +575,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     }, 1000);
 }
-    // 📤 Wklejanie operacji santander do formularza MyFund
+    // 📤 Wklejanie operacji erste do formularza MyFund
 
-    function insertTransactions_santander(csvContent) {
+    function insertTransactions_erste(csvContent) {
         const select = document.querySelector('select#bank');
         if (select) {
             select.value = 'SantanderPPK2';
@@ -589,7 +589,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const csvBlob = new Blob([csvContent], {
             type: 'text/csv'
         });
-        const file = new File([csvBlob], "santander_export.csv", {
+        const file = new File([csvBlob], "erste_export.csv", {
             type: "text/csv"
         });
 
@@ -767,7 +767,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 "paribas_export.csv",
                 "milenium_export.csv",
                 "investors_export.csv",
-                "santander_export.csv",
+                "erste_export.csv",
                 "noble_export.csv",
                 "bybit_export.csv",
                 "pekao_ikze_export.csv",
@@ -779,7 +779,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
                     warningContainer.style.display = "block";
                 }
-                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("santander") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24") || tabUrl.includes("epekaotfi") || tabUrl.includes("analizy.pl")) {
+                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("erste") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24") || tabUrl.includes("epekaotfi") || tabUrl.includes("analizy.pl")) {
                     if (data["bybit_export.csv"] && !tabUrl.includes("sourcePlugin=ByBitWtyczka")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
@@ -820,7 +820,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=INVESTORSPPK", "_blank");
                         actionContainer.appendChild(btn);
                     }
-                    if (data["santander_export.csv"] && !tabUrl.includes("&sourcePlugin=SantanderPPK2")) {
+                    if (data["erste_export.csv"] && !tabUrl.includes("&sourcePlugin=SantanderPPK2")) {
                         const btn = document.createElement("button");
                         btn.className = "BUTTON";
                         btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
@@ -1015,7 +1015,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             };
                             actionContainer.appendChild(pasteBtn);
                         }
-                        if (data["santander_export.csv"]) {
+                        if (data["erste_export.csv"]) {
                             const pasteBtn = document.createElement("button");
                             pasteBtn.className = "BUTTON";
                             pasteBtn.style.display = "block"
@@ -1025,8 +1025,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     target: {
                                         tabId: tab.id
                                     },
-                                    function: insertTransactions_santander,
-                                    args: [data["santander_export.csv"]]
+                                    function: insertTransactions_erste,
+                                    args: [data["erste_export.csv"]]
                                 });
                             };
                             actionContainer.appendChild(pasteBtn);
@@ -1125,7 +1125,7 @@ if (
     !tabUrl.includes("tfi.bnpparibas.pl") &&
     !tabUrl.includes("millenniumtfi.sti24") &&
     !tabUrl.includes("24.investors.pl") &&
-    !tabUrl.includes("online.santander-ppk") &&
+    !tabUrl.includes("online.erste-ppk") &&
     !tabUrl.includes("bybit.com") &&
     !tabUrl.includes("mynsapp.noblesecurities") &&
     !tabUrl.includes("pekao24") &&
@@ -1150,7 +1150,7 @@ if (
                 <li><a href="https://sti24.tfi.bnpparibas.pl" target="_blank"><b>BNP Paribas</b></a></li>
                 <li><a href="https://millenniumtfi.sti24.pl" target="_blank"><b>Millennium</b></a></li>
                 <li><a href="https://online24.investors.pl" target="_blank"><b>Investors</b></a></li>
-                <li><a href="https://online.santander-ppk.pl" target="_blank"><b>Santander</b></a></li>
+                <li><a href="https://online.erste-ppk.pl" target="_blank"><b>Erste</b></a></li>
             </ul>
         </div>
     `;
@@ -1261,13 +1261,13 @@ if (
     if ((tabUrl.includes("tfi.bnpparibas.pl") && !tabUrl.includes("/transaction/history")) ||
         (tabUrl.includes("millenniumtfi.sti24") && !tabUrl.includes("/transaction/history")) ||
         (tabUrl.includes("24.investors.pl") && !tabUrl.includes("/transaction/history")) ||
-        (tabUrl.includes('online.santander-ppk') && !tabUrl.includes("/transaction/history"))) {
+        (tabUrl.includes('online.erste-ppk') && !tabUrl.includes("/transaction/history"))) {
         document.getElementById("PPKWarningBox").style.display = "block";
         document.getElementById("dateWarningBox").style.display = "block";
         exportBtn.style.display = "none";
     }
     if ((tabUrl.includes("tfi.bnpparibas.pl") || tabUrl.includes("millenniumtfi.sti24") || tabUrl.includes("24.investors.pl") ||
-            tabUrl.includes('online.santander-ppk')) && (tabUrl.includes(":transaction:history") || tabUrl.includes("/transaction/history"))) {
+            tabUrl.includes('online.erste-ppk')) && (tabUrl.includes(":transaction:history") || tabUrl.includes("/transaction/history"))) {
         document.getElementById("dateWarningBox").style.display = "block";
         exportBtn.style.display = "block";
     }
@@ -1289,7 +1289,7 @@ if (
             const downloadStoredBtn = document.getElementById("downloadStoredBtn");
 
             chrome.storage.local.get(["finax_transakcje.csv", "finax_operacje.csv", "mbank_export.csv", "paribas_export.csv", 
-                                    "milenium_export.csv", "investors_export.csv", "santander_export.csv", "noble_export.csv", "pekao_ikze_export.csv"], (data) => {
+                                    "milenium_export.csv", "investors_export.csv", "erste_export.csv", "noble_export.csv", "pekao_ikze_export.csv"], (data) => {
               let found = null;
               let filename = null;
 
@@ -1311,9 +1311,9 @@ if (
               } else if (data["investors_export.csv"]) {
                 found = data["investors_export.csv"];
                 filename = "investors_export.csv";
-              } else if (data["santander_export.csv"]) {
-                found = data["santander_export.csv"];
-                filename = "santander_export.csv";
+              } else if (data["erste_export.csv"]) {
+                found = data["erste_export.csv"];
+                filename = "erste_export.csv";
               } else if (data["noble_export.csv"]) {
                 found = data["noble_export.csv"];
                 filename = "noble_export.csv";
@@ -1356,8 +1356,8 @@ if (
             funcToRun = extractAndSaveTable_milenium;
         } else if (tabUrl.includes("investors")) {
             funcToRun = extractAndSaveTable_investors;
-        } else if (tabUrl.includes("santander")) {
-            funcToRun = extractAndSaveTable_santander;
+        } else if (tabUrl.includes("erste")) {
+            funcToRun = extractAndSaveTable_erste;
         } else if (tabUrl.includes("noblesecurities")) {
             funcToRun = extractAndSaveTable_noble;
         } else if (tabUrl.includes("pekao24") || tabUrl.includes("epekaotfi")) {
@@ -2809,9 +2809,9 @@ transactions.forEach((tr) => {
 }
 
 
-// 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV
-// 📋 Wyciągnięcie danych z tabeli santander i zapisanie jako CSV  (NOWA WERSJA jak Paribas)
-function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
+// 📋 Wyciągnięcie danych z tabeli erste i zapisanie jako CSV
+// 📋 Wyciągnięcie danych z tabeli erste i zapisanie jako CSV  (NOWA WERSJA jak Paribas)
+function extractAndSaveTable_erste(STORAGE_KEYS_ALL) {
     function normalizePlAmount(raw) {
         if (raw == null) return "";
         let s = String(raw);
@@ -2825,7 +2825,7 @@ function extractAndSaveTable_santander(STORAGE_KEYS_ALL) {
         return s.trim();
     }
 
-    const filename = "santander_export.csv";
+    const filename = "erste_export.csv";
     const headers = [
         "Data wyceny",
         "Fundusz docelowy",
@@ -4673,7 +4673,7 @@ function updateVisibleIcon() {
     const paribasIcon = document.getElementById("paribasIcon");
     const mileniumIcon = document.getElementById("mileniumIcon");
     const investorsIcon = document.getElementById("investorsIcon");
-    const santanderIcon = document.getElementById("santanderIcon");
+    const ersteIcon = document.getElementById("ersteIcon");
     const pekaoIcon = document.getElementById("pekaoIcon");
     const nobleIcon = document.getElementById("nobleIcon");
     const bybitIcon = document.getElementById("bybitIcon");
@@ -4685,7 +4685,7 @@ function updateVisibleIcon() {
     paribasIcon.style.display = "none";
     mileniumIcon.style.display = "none";
     investorsIcon.style.display = "none";
-    santanderIcon.style.display = "none";
+    ersteIcon.style.display = "none";
     pekaoIcon.style.display = "none";
     nobleIcon.style.display = "none";
     bybitIcon.style.display = "none";
@@ -4713,8 +4713,8 @@ function updateVisibleIcon() {
         if (url.includes("investors")) {
             investorsIcon.style.display = "inline-block"
         }
-        if (url.includes("santander")) {
-            santanderIcon.style.display = "inline-block"
+        if (url.includes("erste")) {
+            ersteIcon.style.display = "inline-block"
         }
         if (url.includes("bybit")) {
             bybitIcon.style.display = "inline-block";
@@ -4769,9 +4769,9 @@ document.getElementById("investorsIcon").addEventListener("click", () => {
         url: "https://online24.investors.pl/"
     });
 });
-document.getElementById("santanderIcon").addEventListener("click", () => {
+document.getElementById("ersteIcon").addEventListener("click", () => {
     chrome.tabs.create({
-        url: "https://online.santander-ppk.pl/"
+        url: "https://online.erste-ppk.pl/"
     });
 });
 document.getElementById("nobleIcon").addEventListener("click", () => {

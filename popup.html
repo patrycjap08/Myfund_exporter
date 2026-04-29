@@ -214,10 +214,10 @@
 }
 
 .tooltip-text {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(calc(-75%));
+    position: fixed;
+    bottom: 80px;
+    right: 15px;
+    transform: none;
     background-color: #333;
     color: #fff;
     text-align: left;
@@ -225,7 +225,7 @@
     border-radius: 5px;
     font-size: 12px;
     width: 300px;
-    max-width: 90vw;
+    max-width: 340px;
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.2s ease, visibility 0.2s ease;
@@ -258,24 +258,21 @@
             opacity: 1;
         }
 
-        .trash-tooltip {
-            position: absolute;
-            top: 50%;
-            right: 100%;
-            transform: translateY(-50%);
-            margin-right: 8px;
-            background-color: #333;
-            color: #fff;
-            white-space: nowrap;
-            padding: 6px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            visibility: hidden;
-            opacity: 0;
-            transition: opacity 0.2s;
-            z-index: 1000;
-        }
-
+.trash-tooltip {
+    position: fixed;
+    bottom: 35px;
+    right: 40px;
+    background-color: #333;
+    color: #fff;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 2000;
+}
 
         /* Stały pasek na dole */
         #bottomBar {
@@ -315,6 +312,10 @@
         #clearDataContainer {
             position: relative;
             margin-top: 2px;
+        }
+        #clearDataContainer:hover .trash-tooltip {
+            visibility: visible;
+            opacity: 1;
         }
 
         /* Dodatkowy margines, żeby treść nie chowała się pod paskiem */
@@ -488,7 +489,7 @@
             <img id="paribasIcon" class="icon" src="paribas_icon.png" title="BNP Paribas" style="display: none;">
             <img id="mileniumIcon" class="icon" src="milenium_icon.png" title="Milenium" style="display: none;">
             <img id="investorsIcon" class="icon" src="investors_icon.png" title="Investors" style="display: none;">
-            <img id="santanderIcon" class="icon" src="santander_icon.png" title="Santander" style="display: none;">
+            <img id="ersteIcon" class="icon" src="erste_icon.png" title="Erste" style="display: none;">
             <img id="pekaoIcon" class="icon" src="pekao_icon.png" title="Pekao" style="display: none;">
             <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
             <img id="bybitIcon" class="icon" src="bybit_icon.png" title="Bybit" style="display: none;">
@@ -497,7 +498,7 @@
             <div class="tooltip-container">
                 <img class="icon" src="info-icon.png" id="customInfoIcon">
                 <span class="tooltip-text">
-                    Wejdź na stronę jednej z obsługiwanych platform (np. Finax, mBank, BNP Paribas, Investors, Santander, Millenium) i otwórz wtyczkę.<br>
+                    Wejdź na stronę jednej z obsługiwanych platform (np. Finax, mBank, BNP Paribas, Investors, Erste, Millenium) i otwórz wtyczkę.<br>
                     Na podstronie z operacjami kliknij „Pobierz dane”, aby zapisać je tymczasowo w pamięci przeglądarki.
                     Wtyczka przekieruje cię do odpowiedniej podstrony MyFund.<br>
                     Wybierz portfel, otwórz ponownie wtyczkę i kliknij: 
