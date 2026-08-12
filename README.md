@@ -19,7 +19,7 @@ Instalacja do testów
 
 Obsługiwane strony
   finax.eu
-  mbank.pl/wallet/sfi/history
+  online.mbank.pl/investment-funds/history
   sti24.tfi.bnpparibas.pl/transaction/history
   millenniumtfi.sti24.pl/transaction/history
   online24.investors.pl/transaction/history

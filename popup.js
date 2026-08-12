@@ -65,6 +65,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentWindow: true
     });
     const tabUrl = tab.url;
+    const isMbankHistoryPage = (url) => url.includes("mbank.pl") && (
+        url.includes("wallet/sfi/history") ||
+        url.includes("investment-funds/history")
+    );
 
     // 📤 Wklejanie transakcji Finax do formularza MyFund
 
@@ -1138,7 +1142,7 @@ if (
             <p style="margin: 0 0 4px 0;">Wtyczka obsługuje eksport danych ze stron:</p>
             <ul style="margin: 0 0 6px 18px; padding: 0;">
                 <li><a href="https://finax.eu" target="_blank"><b>Finax.eu</b></a></li>
-                <li><a href="https://mbank.pl" target="_blank"><b>SFI mBank.pl</b></a></li>
+                <li><a href="https://online.mbank.pl" target="_blank"><b>SFI mBank</b></a></li>
                 <li><a href="https://www.bybit.com" target="_blank"><b>Bybit.com</b></a></li>
                 <li><a href="https://mynsapp.noblesecurities.pl/" target="_blank"><b>Noble Securities</b></a></li>
                 <li><a href="https://www.pekao24.pl" target="_blank"><b>Pekao24.pl</b></a></li>
@@ -1154,6 +1158,7 @@ if (
             </ul>
         </div>
     `;
+
     box.style.display = "block";
     exportBtn.style.display = "none";
 }
@@ -1236,10 +1241,10 @@ if (
         exportBtn.style.display = "block";
     }
 
-    if (tabUrl.includes("mbank.pl") && !tabUrl.includes("wallet/sfi/history")) {
+    if (tabUrl.includes("mbank.pl") && !isMbankHistoryPage(tabUrl)) {
         document.getElementById("grayBoxb").style.display = "block";
         exportBtn.style.display = "none";
-    } else if (tabUrl.includes("mbank.pl")) {
+    } else if (isMbankHistoryPage(tabUrl)) {
         document.getElementById("dateWarningBox").style.display = "block";
         exportBtn.style.display = "block";
     }
@@ -2325,6 +2330,70 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
         return m ? Number(m[0]) : null;
     };
 
+    const getRowDataTestId = (row) => row.getAttribute("data-test-id") || "";
+    const getDetailsRow = (row) => {
+        const next = row?.nextElementSibling;
+        return next && next.getAttribute("data-component") === "DesktopBodyRowDetails" ? next : null;
+    };
+    const getMainRows = () => {
+        const modernRows = Array.from(document.querySelectorAll('tbody[data-component="TableBody"]'))
+            .map((tbody) => {
+                const trs = Array.from(tbody.querySelectorAll(':scope > tr'));
+                return trs.length >= 2 && trs[1].getAttribute("data-component") === "DesktopBodyRowDetails" ? trs[0] : null;
+            })
+            .filter(Boolean);
+        if (modernRows.length) return modernRows;
+
+        return Array.from(document.querySelectorAll(
+            'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
+            'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
+        ));
+    };
+    const getExpandButton = (row) => row?.querySelector('button[aria-expanded], button[aria-label*="wiń" i], button[aria-label*="zwiń" i], [role="button"]');
+    const isExpanded = (row) => {
+        const detailsRow = getDetailsRow(row);
+        if (detailsRow?.getAttribute("aria-hidden") === "false") return true;
+        return getExpandButton(row)?.getAttribute("aria-expanded") === "true";
+    };
+    const collectLabelPairs = (detailsRow) => {
+        const pairs = [];
+
+        Array.from(detailsRow.querySelectorAll('[data-test-id="LabelData:label"]')).forEach((lbl) => {
+            const label = lbl.textContent.trim().toLowerCase();
+            const dataEl = lbl.closest('[data-component="Box"]')?.querySelector('[data-test-id="LabelData:data"]');
+            const val = dataEl ? (dataEl.querySelector('span, [data-component="Amount"]')?.textContent?.trim() || dataEl.textContent.trim()) : "";
+            if (label && val) pairs.push({
+                label,
+                val
+            });
+        });
+
+        Array.from(detailsRow.querySelectorAll('[data-component="Box"]')).forEach((box) => {
+            const directPs = Array.from(box.children).filter((child) => child.tagName === "P");
+            if (directPs.length < 2) return;
+
+            const label = (directPs[0].textContent || "").trim().toLowerCase();
+            const val = (directPs[1].textContent || "").trim();
+            if (!label || !val) return;
+            if (!pairs.some((pair) => pair.label === label && pair.val === val)) {
+                pairs.push({
+                    label,
+                    val
+                });
+            }
+        });
+
+        return pairs;
+    };
+    const getRowFundName = (row) => {
+        const fundCell = row.querySelector("td:nth-child(2)");
+        if (!fundCell) return "";
+        const paragraphs = Array.from(fundCell.querySelectorAll("p"))
+            .map((el) => (el.textContent || "").trim())
+            .filter(Boolean);
+        return paragraphs.length ? paragraphs[paragraphs.length - 1] : (fundCell.textContent || "").trim();
+    };
+
     // Znajdź najbliższy scrollowalny kontener (lista historii SFI zwykle w środku panelu)
     const getScrollParent = (el) => {
         let node = el?.parentElement;
@@ -2338,12 +2407,9 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     };
 
     // Najpierw znajdź JAKIKOLWIEK wiersz, by odnaleźć kontener
-    const anyRow = document.querySelector(
-        'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
-        'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
-    );
+    const anyRow = getMainRows()[0];
     if (!anyRow) {
-        alert("Nie znaleziono wierszy FundsHistory:SourceFund*/DestinationFund*.");
+        alert("Nie znaleziono wierszy historii mBank.");
         return;
     }
 
@@ -2353,11 +2419,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     async function preloadAllRows(maxRounds = 20) {
         let lastCount = 0;
         for (let round = 0; round < maxRounds; round++) {
-            const currRows = document.querySelectorAll(
-                'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
-                'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
-            );
-            const count = currRows.length;
+            const count = getMainRows().length;
             // scrolluj do dołu, by wywołać doładowanie
             scroller.scrollTop = scroller.scrollHeight;
             await sleep(400);
@@ -2365,10 +2427,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
                 // spróbuj jeszcze raz dociągnąć — małe potrząśnięcie
                 scroller.scrollTop = scroller.scrollHeight;
                 await sleep(400);
-                const newCount = document.querySelectorAll(
-                    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
-                    'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
-                ).length;
+                const newCount = getMainRows().length;
                 if (newCount === count) break; // nic już nie przybywa
                 lastCount = newCount;
             } else {
@@ -2380,10 +2439,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     await preloadAllRows();
 
     // Teraz pobierz pełną listę
-    const rows = Array.from(document.querySelectorAll(
-        'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:SourceFund"],' +
-        'tr[data-component="TableBodyRow"][data-test-id^="FundsHistory:DestinationFund"]'
-    ));
+    const rows = getMainRows();
     if (!rows.length) {
         alert("Po preloadzie nadal brak wierszy.");
         return;
@@ -2401,7 +2457,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
             await sleep(120);
 
             // Indeks z SourceFundX / DestinationFundX
-            const dtid = row.getAttribute("data-test-id") || "";
+            const dtid = getRowDataTestId(row);
             const m = dtid.match(/(?:SourceFund|DestinationFund)(\d+)/);
             const idx = m ? m[1] : "0";
 
@@ -2418,20 +2474,18 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
             const valueAbs = Math.abs(parseNum(valueRaw) ?? 0);
 
             // Otwórz szczegóły — najpierw klik w wiersz…
-            if (row.getAttribute("aria-expanded") !== "true") row.click();
+            if (!isExpanded(row)) row.click();
             // …fallback: spróbuj kliknąć dowolny przycisk w wierszu
-            if (row.getAttribute("aria-expanded") !== "true") {
-                row.querySelector('button, [role="button"]')?.click();
+            if (!isExpanded(row)) {
+                getExpandButton(row)?.click();
             }
             // ⏳ daj UI 500 ms na rozwinięcie szczegółów
             await sleep(500);
 
             // Czekaj aż pokaże się sąsiadujący TR z detalami
             const detailsRow = await waitFor(() => {
-                const next = row.nextElementSibling;
-                return (next &&
-                    next.getAttribute("data-component") === "DesktopBodyRowDetails" &&
-                    next.getAttribute("aria-hidden") === "false") ? next : null;
+                const next = getDetailsRow(row);
+                return next?.getAttribute("aria-hidden") === "false" ? next : null;
             });
             if (!detailsRow) {
                 // Nie udało się rozwinąć – zanotuj minimalne info (wartość + typ), żeby czegoś nie zgubić
@@ -2448,22 +2502,14 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
             const qAny = (name) => detailsRow.querySelector(`[data-test-id^="HistoryDetails"][data-test-id$=":${name}"] span`)?.textContent?.trim() || "";
 
             // Pary LabelData (fallbacki pod różne „modele” UI)
-            const labelPairs = Array.from(detailsRow.querySelectorAll('[data-test-id="LabelData:label"]')).map(lbl => {
-                const label = lbl.textContent.trim().toLowerCase();
-                const dataEl = lbl.closest('[data-component="Box"]')?.querySelector('[data-test-id="LabelData:data"]');
-                const val = dataEl ? (dataEl.querySelector('span, [data-component="Amount"]')?.textContent?.trim() || "") : "";
-                return {
-                    label,
-                    val
-                };
-            });
+            const labelPairs = collectLabelPairs(detailsRow);
             const getLabel = (needle) => labelPairs.find(p => p.label.includes(needle))?.val || "";
 
             const valuationDate = q("ValuationDate") || qAny("ValuationDate") || getLabel("data wyceny");
 
             // Prosty przypadek — pojedynczy fundusz/jednostki
-            let singleName = q("Name") || qAny("Name") || getLabel("nazwa funduszu") || "";
-            const singleUnitsT = q("Units") || qAny("Units") || getLabel("liczba jednostek") || "";
+            let singleName = q("Name") || qAny("Name") || getLabel("nazwa funduszu") || getRowFundName(row) || "";
+            const singleUnitsT = q("Units") || qAny("Units") || getLabel("liczba jednostek transakcji") || getLabel("liczba jednostek") || "";
             const singleUnits = (parseNum(singleUnitsT)?.toString()) ?? (singleUnitsT || "");
 
             let rodzaj;
@@ -2490,7 +2536,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
                     toUnits = parseNum(unitNodes[1]?.textContent || "") ?? (unitNodes[1]?.textContent?.trim() || "");
                 } else {
                     const names = labelPairs.filter(p => p.label.includes("nazwa funduszu")).map(p => p.val);
-                    const unitsArr = labelPairs.filter(p => p.label.includes("liczba jednostek")).map(p => p.val);
+                    const unitsArr = labelPairs.filter(p => p.label.includes("liczba jednostek transakcji") || p.label.includes("liczba jednostek")).map(p => p.val);
                     if (names.length >= 2 && unitsArr.length >= 2) {
                         fromName = names[0] || "";
                         toName = names[1] || "";
@@ -2517,7 +2563,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
                     if (!singleName) {
                         singleName = row.querySelector(`[data-test-id$="SourceFund${idx}:Fund"]`)?.textContent?.trim() ||
                             row.querySelector(`[data-test-id$="DestinationFund${idx}:Fund"]`)?.textContent?.trim() ||
-                            "";
+                            getRowFundName(row) || "";
                     }
                     results.push(['Konwersja', singleName, singleUnits, valuationDate, valueAbs.toFixed(2), taxStr].join(";"));
                 }
@@ -2532,6 +2578,9 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
             const closeBtn = detailsRow.querySelector('[data-test-id$="CloseButton"]');
             if (closeBtn) {
                 closeBtn.click();
+                await sleep(60);
+            } else if (isExpanded(row)) {
+                getExpandButton(row)?.click();
                 await sleep(60);
             }
         } catch (e) {
