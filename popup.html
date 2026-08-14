@@ -13,13 +13,31 @@
             --Neutral700: #9BA6B5;
             --Neutral800: #63717C;
             --Neutral900: #020E1F;
+            --Accent700: #020E1F;
+            --Accent800: #63717C;
+            --Accent100: #F1F1F5;
+            --SuccessBg: #d4edda;
+            --SuccessBorder: #c3e6cb;
+            --SuccessText: #155724;
+            --WarningBg: #fff3cd;
+            --WarningBorder: #ffeeba;
+            --WarningText: #856404;
+            --ErrorBg: #f8d7da;
+            --ErrorBorder: #f5c2c7;
+            --ErrorText: #842029;
+            --InfoBg: #F5F4FA;
+            --InfoBorder: #D9D6E8;
+            --InfoText: #2E3340;
+            --RadiusSm: 8px;
+            --RadiusMd: 12px;
+            --ShadowSoft: 0 10px 24px rgba(2, 14, 31, 0.08);
         }
 
         html, body {
           margin: 0;
           padding: 0;
           width: 360px;
-          min-height: 490px;
+                                        min-height: 530px;
           overflow: hidden;
           box-sizing: border-box;
       }
@@ -55,7 +73,7 @@
         }
 
         button {
-            margin: 8px 0;
+            margin: 0;
             padding: 6px 12px;
         }
 
@@ -66,22 +84,28 @@
         #instructionsBoxa,
         #instructionsBoxb,
         #grayBoxb,
-        #grayBoxc {
+        #grayBoxc,
+        #dateWarningBox,
+        #PPKWarningBox,
+        #NobleWarningBox,
+        #warning {
             margin-bottom: 4px;
-            background-color: var(--Neutral400);
+            background-color: var(--InfoBg);
             background-image: url("info.png");
-            background-position: 4px 4px;
+            background-position: 10px 10px;
             background-repeat: no-repeat;
-            border-radius: 6px;
-            color: var(--Neutral900);
+            border: 1px solid var(--InfoBorder);
+            border-radius: var(--RadiusSm);
+            color: var(--InfoText);
             font-weight: 400;
             font-size: 12px;
-            padding: 8px 8px 8px 30px;
-            text-align: center;
+            line-height: 1.45;
+            padding: 8px 10px 8px 32px;
             width: 100%;
             box-sizing: border-box;
             display: none;
             text-align: left;
+            box-shadow: 0 2px 8px rgba(2, 14, 31, 0.04);
         }
 
         #instructionsBoxa a,
@@ -91,92 +115,35 @@
             /* lub none, jeśli nie chcesz podkreślenia */
         }
 
-        #dateWarningBox {
-            background-color: var(--Neutral400);
-            background-image: url("info.png");
-            background-position: 4px 4px;
-            background-repeat: no-repeat;
-            border-radius: 6px;
-            color: var(--Neutral900);
-            font-weight: 400;
-            font-size: 12px;
-            padding: 8px 8px 8px 30px;
-            text-align: center;
-            width: 100%;
-            box-sizing: border-box;
-            display: none;
-            text-align: left;
-        }
-
-        #PPKWarningBox {
-            background-color: var(--Neutral400);
-            background-image: url("info.png");
-            background-position: 4px 4px;
-            background-repeat: no-repeat;
-            border-radius: 6px;
-            color: var(--Neutral900);
-            font-weight: 400;
-            font-size: 12px;
-            padding: 8px 8px 8px 30px;
-            text-align: center;
-            width: 100%;
-            box-sizing: border-box;
-            display: none;
-            text-align: left;
-        }
-
-        #NobleWarningBox {
-            background-color: var(--Neutral400);
-            background-image: url("info.png");
-            background-position: 4px 4px;
-            background-repeat: no-repeat;
-            border-radius: 6px;
-            color: var(--Neutral900);
-            font-weight: 400;
-            font-size: 12px;
-            padding: 8px 8px 8px 30px;
-            text-align: center;
-            width: 100%;
-            box-sizing: border-box;
-            display: none;
-            text-align: left;
-        }
-
-        #warning {
-            background-color: var(--Neutral400);
-            background-image: url("info.png");
-            background-position: 4px 4px;
-            background-repeat: no-repeat;
-            border-radius: 6px;
-            color: var(--Neutral900);
-            font-weight: 400;
-            font-size: 12px;
-            padding: 8px 8px 8px 30px;
-            text-align: center;
-            width: 100%;
-            box-sizing: border-box;
-            display: none;
-            text-align: left;
-        }
-
         #actionContainer {
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
         }
 
         .BUTTON,
         #exportBtn {
-            background-color: var(--Neutral900);
+            appearance: none;
+            background-color: var(--Accent700);
             color: var(--Neutral0);
-            padding: 8px 4px;
+            padding: 8px 10px;
             font-size: 12px;
-            border-radius: 6px;
+            border-radius: var(--RadiusSm);
             cursor: pointer;
             width: 100%;
             text-align: center;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
             font-weight: 600;
             line-height: 16px;
             display: none;
+            border: 1px solid var(--Accent700);
+            box-shadow: 0 6px 14px rgba(2, 14, 31, 0.14);
+            letter-spacing: 0.01em;
+        }
+
+        #exportBtn {
+            margin-bottom: 5px;
         }
 
         .BUTTON:disabled,
@@ -189,7 +156,46 @@
 
         .BUTTON:hover,
         #exportBtn:hover {
-            background-color: var(--Neutral800);
+            background-color: var(--Accent800);
+            border-color: var(--Accent800);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(2, 14, 31, 0.18);
+        }
+
+        .BUTTON.button-secondary {
+            background-color: var(--Accent100);
+            color: var(--Neutral900);
+            border-color: var(--Neutral600);
+            box-shadow: none;
+        }
+
+        .BUTTON.button-secondary:hover {
+            background-color: var(--Neutral200);
+            border-color: var(--Neutral700);
+            box-shadow: 0 8px 16px rgba(2, 14, 31, 0.10);
+        }
+
+        .BUTTON.button-ghost {
+            background-color: transparent;
+            color: var(--Neutral900);
+            border-color: var(--Neutral600);
+            box-shadow: none;
+        }
+
+        .BUTTON.button-ghost:hover {
+            background-color: var(--Neutral200);
+            border-color: var(--Neutral700);
+            box-shadow: 0 6px 14px rgba(2, 14, 31, 0.08);
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .BUTTON {
+            display: block;
+            flex: 1;
         }
 
         
@@ -218,11 +224,11 @@
     bottom: 80px;
     right: 15px;
     transform: none;
-    background-color: #333;
-    color: #fff;
+    background-color: var(--Neutral900);
+    color: var(--Neutral0);
     text-align: left;
-    padding: 10px;
-    border-radius: 5px;
+    padding: 12px;
+    border-radius: var(--RadiusMd);
     font-size: 12px;
     width: 300px;
     max-width: 340px;
@@ -232,6 +238,8 @@
     z-index: 2000;
     white-space: normal;
     pointer-events: auto;
+    box-shadow: var(--ShadowSoft);
+    line-height: 1.45;
 }
 
 .tooltip-container:hover .tooltip-text,
@@ -262,16 +270,17 @@
     position: fixed;
     bottom: 35px;
     right: 40px;
-    background-color: #333;
-    color: #fff;
+    background-color: var(--Neutral900);
+    color: var(--Neutral0);
     white-space: nowrap;
-    padding: 6px 10px;
-    border-radius: 5px;
+    padding: 8px 10px;
+    border-radius: var(--RadiusSm);
     font-size: 12px;
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.2s;
     z-index: 2000;
+    box-shadow: var(--ShadowSoft);
 }
 
         /* Stały pasek na dole */
@@ -393,9 +402,9 @@
         <div id="bybitQuestionInner" style="display:none;">
             <div style="font-size:12px; line-height:1.4; margin-bottom:8px; background:#F1F1F5; border-radius:6px; padding:8px 10px;">
                 <p><b>❓ Czy chcesz zaimportować dane z konta Funding z okresu dłuższego niż 90 dni?</b></p>
-                <div style="display:flex; gap:8px;">
-                    <button id="bybitAnsYes" class="BUTTON" style="display:block; flex:1;">Tak</button>
-                    <button id="bybitAnsNo" class="BUTTON" style="display:block; flex:1;">Nie</button>
+                <div class="button-row">
+                    <button id="bybitAnsYes" class="BUTTON">Tak</button>
+                    <button id="bybitAnsNo" class="BUTTON button-secondary">Nie</button>
                 </div>
             </div>
         </div>

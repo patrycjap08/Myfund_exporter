@@ -30,11 +30,128 @@ const STORAGE_KEYS = {
         "analizy_pl_export.csv" 
     ]
 };
-document.addEventListener("DOMContentLoaded", async () => {
+
+const getActiveTab = async () => {
     const [tab] = await chrome.tabs.query({
         active: true,
         currentWindow: true
     });
+    return tab;
+};
+
+const executeOnTab = (tabId, func, args = []) => {
+    if (!tabId) return;
+    chrome.scripting.executeScript({
+        target: {
+            tabId
+        },
+        function: func,
+        args
+    });
+};
+
+const openInNewTab = (url) => chrome.tabs.create({
+    url
+});
+
+const PAGE_MESSAGE_THEME = {
+    success: {
+        backgroundColor: "#d4edda",
+        color: "#155724",
+        borderColor: "#c3e6cb"
+    },
+    error: {
+        backgroundColor: "#f8d7da",
+        color: "#842029",
+        borderColor: "#f5c2c7"
+    },
+    empty: {
+        backgroundColor: "#fff3cd",
+        color: "#856404",
+        borderColor: "#ffeeba"
+    }
+};
+
+function showPageMessage(messageText, variant = "success") {
+    const theme = PAGE_MESSAGE_THEME[variant] || PAGE_MESSAGE_THEME.success;
+    const message = document.createElement("div");
+    message.textContent = messageText;
+    Object.assign(message.style, {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: "9999",
+        backgroundColor: theme.backgroundColor,
+        color: theme.color,
+        padding: "16px 22px",
+        border: `1px solid ${theme.borderColor}`,
+        borderRadius: "12px",
+        fontWeight: "600",
+        fontSize: "14px",
+        lineHeight: "1.4",
+        textAlign: "center",
+        maxWidth: "320px",
+        boxShadow: "0 10px 24px rgba(2, 14, 31, 0.12)"
+    });
+    document.body.appendChild(message);
+    setTimeout(() => message.remove(), 3000);
+}
+
+function importCsvToMyfund({
+    selectValue,
+    fileName,
+    csvContent,
+    retryAttempts = 0
+}) {
+    const select = document.querySelector('select#bank');
+    if (select) {
+        select.value = selectValue;
+        select.dispatchEvent(new Event('change', {
+            bubbles: true
+        }));
+    }
+
+    const input = document.querySelector('input[type="file"]#imagefile');
+    if (!input) {
+        alert("Nie znaleziono pola do przesłania pliku.");
+        return;
+    }
+
+    const csvBlob = new Blob([csvContent], {
+        type: 'text/csv'
+    });
+    const file = new File([csvBlob], fileName, {
+        type: "text/csv"
+    });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event('change', {
+        bubbles: true
+    }));
+
+    const tryClick = () => {
+        const submitButton = document.querySelector('#submit1');
+        if (submitButton) {
+            submitButton.click();
+            return;
+        }
+
+        if (tryClick.attempts < retryAttempts) {
+            tryClick.attempts++;
+            setTimeout(tryClick, 200);
+        } else {
+            alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
+        }
+    };
+
+    tryClick.attempts = 0;
+    setTimeout(tryClick, 300);
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const tab = await getActiveTab();
     const url = tab.url || "";
 
     const body = document.body;
@@ -42,7 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (url.includes("bybit")) {
         body.style.height = "700px";
     } else {
-        body.style.height = "490px"; // domyślnie
+        body.style.height = "530px"; // domyślnie
     }
 });
 
@@ -60,33 +177,28 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
     // Pobieramy aktywną zakładkę
-    const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true
-    });
+    const tab = await getActiveTab();
     const tabUrl = tab.url;
+    const tabId = tab?.id;
     const isMbankHistoryPage = (url) => url.includes("mbank.pl") && (
         url.includes("wallet/sfi/history") ||
         url.includes("investment-funds/history")
     );
+    const supportedPopupHost = /bybit|noble|erste|investors|milenium|paribas|mbank|finax|myfund|pekao24|epekaotfi|analizy\.pl/i;
 
-    // 📤 Wklejanie transakcji Finax do formularza MyFund
-
-    function insertTransactions(csvContent) {
+    const setImportFile = ({
+        selectValue,
+        fileName,
+        csvContent,
+        retryAttempts = 0
+    }) => {
         const select = document.querySelector('select#bank');
         if (select) {
-            select.value = 'finaxXls';
+            select.value = selectValue;
             select.dispatchEvent(new Event('change', {
                 bubbles: true
             }));
         }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
-        });
-        const file = new File([csvBlob], "finax_transakcje.csv", {
-            type: "text/csv"
-        });
 
         const input = document.querySelector('input[type="file"]#imagefile');
         if (!input) {
@@ -94,6 +206,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        const csvBlob = new Blob([csvContent], {
+            type: 'text/csv'
+        });
+        const file = new File([csvBlob], fileName, {
+            type: "text/csv"
+        });
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         input.files = dataTransfer.files;
@@ -101,316 +219,96 @@ document.addEventListener("DOMContentLoaded", async () => {
             bubbles: true
         }));
 
-        // 🔽 Kliknięcie "Pobierz z pliku" po 300ms
-        setTimeout(() => {
+        const tryClick = () => {
             const submitButton = document.querySelector('#submit1');
             if (submitButton) {
                 submitButton.click();
+                return;
+            }
+
+            if (tryClick.attempts < retryAttempts) {
+                tryClick.attempts++;
+                setTimeout(tryClick, 200);
             } else {
                 alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
             }
-        }, 300);
+        };
+
+        tryClick.attempts = 0;
+        setTimeout(tryClick, 300);
+    };
+
+    // 📤 Wklejanie transakcji Finax do formularza MyFund
+
+    function insertTransactions(csvContent) {
+        setImportFile({
+            selectValue: 'finaxXls',
+            fileName: "finax_transakcje.csv",
+            csvContent
+        });
     }
 
     // 📤 Wklejanie operacji Finax do formularza MyFund
 
     function insertOperations(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'finaxXls';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'finaxXls',
+            fileName: "finax_operacje.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "finax_operacje.csv", {
-            type: "text/csv"
-        });
-
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                // Spróbuj ponownie po 200ms, max 5 razy
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300); // pierwszy strzał
     }
 
     function insertTransactions_bybit(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'ByBitWtyczka';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        // 🔄 Tworzymy plik CSV
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'ByBitWtyczka',
+            fileName: "bybit_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "bybit_export.csv", {
-            type: "text/csv"
-        });
-
-        // 🔍 Szukamy pola pliku
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        // 🧙‍♂️ Podmieniamy plik w input[type=file]
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // ⏳ Klikamy przycisk "Pobierz z pliku"
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300);
     }
     // 📤 Wklejanie transakcji mBank SFI do formularza MyFund
 
     function insertTransactions_mbank(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'mBankSFI';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        // 🔄 Tworzymy plik CSV
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'mBankSFI',
+            fileName: "mbank_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "mbank_export.csv", {
-            type: "text/csv"
-        });
-
-        // 🔍 Szukamy pola pliku
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        // 🧙‍♂️ Podmieniamy plik w input[type=file]
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // ⏳ Klikamy przycisk "Pobierz z pliku"
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300);
     }
 
     // 📤 Wklejanie operacji Paribas do formularza MyFund
 
     function insertTransactions_paribas(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'BNPParibas';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'BNPParibas',
+            fileName: "paribas_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "paribas_export.csv", {
-            type: "text/csv"
-        });
-
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                // Spróbuj ponownie po 200ms, max 5 razy
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300); // pierwszy strzał
     }
 
     // 📤 Wklejanie operacji Milenium do formularza MyFund
 
     function insertTransactions_milenium(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'MillenniumPPK';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'MillenniumPPK',
+            fileName: "milenium_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "milenium_export.csv", {
-            type: "text/csv"
-        });
-
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                // Spróbuj ponownie po 200ms, max 5 razy
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300); // pierwszy strzał
     }
 
     // 📤 Wklejanie operacji Investors do formularza MyFund
 
     function insertTransactions_investors(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'INVESTORSPPK';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'INVESTORSPPK',
+            fileName: "investors_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "investors_export.csv", {
-            type: "text/csv"
-        });
-
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                // Spróbuj ponownie po 200ms, max 5 razy
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300); // pierwszy strzał
     }
 
     function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
@@ -476,7 +374,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     )).filter(tr => tr.querySelector("td.col-show-instrument-history"));
 
     if (!mainRows.length) {
-        return alert("Nie znaleziono wierszy historii Noble. Upewnij się, że jesteś na stronie historii inwestycji.");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+        return;
     }
 
     mainRows.forEach(tr => {
@@ -555,7 +454,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (rows.length <= 1) {
-            return alert("Brak danych do eksportu. Upewnij się, że szczegóły transakcji są widoczne.");
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
         }
 
         const csvContent = rows.map((row, rowIndex) =>
@@ -571,8 +471,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
             chrome.storage.local.set({ [filename]: csvContent }, () => {
                 if (!chrome.runtime.lastError) {
-                    chrome.runtime.sendMessage({ action: "dataSaved" });
+                    chrome.runtime.sendMessage({ action: "dataSaved", filename });
                     chrome.runtime.sendMessage({ action: "checkStorage" });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -582,489 +484,278 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 📤 Wklejanie operacji erste do formularza MyFund
 
     function insertTransactions_erste(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'SantanderPPK2';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'SantanderPPK2',
+            fileName: "erste_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "erste_export.csv", {
-            type: "text/csv"
-        });
-
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                // Spróbuj ponownie po 200ms, max 5 razy
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300); // pierwszy strzał
     }
 
     // 📤 Wklejanie operacji Noble do formularza MyFund
 
     function insertTransactions_noble(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'Noble';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'Noble',
+            fileName: "noble_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "noble_export.csv", {
-            type: "text/csv"
-        });
-
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // 🔁 Próbujemy kliknąć przycisk "Pobierz z pliku" wielokrotnie (w razie opóźnienia ładowania)
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                // Spróbuj ponownie po 200ms, max 5 razy
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300); // pierwszy strzał
     }
     // ===================== MYFUND IMPORT: PEKAO IKZE =====================
     function insertTransactions_pekao(csvContent) {
-        const select = document.querySelector('select#bank');
-        if (select) {
-            select.value = 'PekaoTFI';
-            select.dispatchEvent(new Event('change', {
-                bubbles: true
-            }));
-        }
-
-        const csvBlob = new Blob([csvContent], {
-            type: 'text/csv'
+        setImportFile({
+            selectValue: 'PekaoTFI',
+            fileName: "pekao_ikze_export.csv",
+            csvContent,
+            retryAttempts: 5
         });
-        const file = new File([csvBlob], "pekao_ikze_export.csv", {
-            type: "text/csv"
-        });
-
-        const input = document.querySelector('input[type="file"]#imagefile');
-        if (!input) {
-            alert("Nie znaleziono pola do przesłania pliku.");
-            return;
-        }
-
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', {
-            bubbles: true
-        }));
-
-        // klik "Pobierz z pliku"
-        const tryClick = () => {
-            const submitButton = document.querySelector('#submit1');
-            if (submitButton) {
-                submitButton.click();
-            } else {
-                if (tryClick.attempts < 5) {
-                    tryClick.attempts++;
-                    setTimeout(tryClick, 200);
-                } else {
-                    alert("Nie znaleziono przycisku 'Pobierz z pliku'.");
-                }
-            }
-        };
-
-        tryClick.attempts = 0;
-        setTimeout(tryClick, 300);
     }
     
     function insertTransactions_analizyPl(csvContent) {
-    const select = document.querySelector('select#bank');
-    if (select) {
-        select.value = 'analizyPl';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+        setImportFile({
+            selectValue: 'analizyPl',
+            fileName: "analizy_pl_export.csv",
+            csvContent,
+            retryAttempts: 5
+        });
     }
-
-    const csvBlob = new Blob([csvContent], { type: 'text/csv' });
-    const file = new File([csvBlob], "analizy_pl_export.csv", { type: "text/csv" });
-
-    const input = document.querySelector('input[type="file"]#imagefile');
-    if (!input) { alert("Nie znaleziono pola do przesłania pliku."); return; }
-
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-    input.files = dataTransfer.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-
-    const tryClick = () => {
-        const btn = document.querySelector('#submit1');
-        if (btn) { btn.click(); }
-        else if (tryClick.attempts < 5) { tryClick.attempts++; setTimeout(tryClick, 200); }
-        else { alert("Nie znaleziono przycisku 'Pobierz z pliku'."); }
-    };
-    tryClick.attempts = 0;
-    setTimeout(tryClick, 300);
-}
 
     // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
     function updateActionButtons() {
-        chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        }, (tabs) => {
-            const tabUrl = tabs?.[0]?.url || "";
+        chrome.storage.local.get(STORAGE_KEYS.ALL, (data) => {
+            actionContainer.innerHTML = "";
+            warningContainer.style.display = "none";
+            const isMyfundImportCryptoPage = tabUrl.includes("myfund.pl") && tabUrl.includes("raport=ImportPrzeplywowCrypto");
+            const isMyfundImportOperationsPage = tabUrl.includes("myfund.pl") && tabUrl.includes("raport=ImportOperacji") && !tabUrl.includes("raport=ImportOperacjiPPK");
+            const isMyfundImportPpkPage = tabUrl.includes("myfund.pl") && tabUrl.includes("raport=ImportOperacjiPPK");
+            const isMyfundImportPage = isMyfundImportCryptoPage || isMyfundImportOperationsPage || isMyfundImportPpkPage;
+            const getStoredDataSourceLabel = (key) => {
+                const sourceNames = {
+                    "bybit_export.csv": "Bybit",
+                    "mbank_export.csv": "Mbank",
+                    "paribas_export.csv": "Paribas",
+                    "milenium_export.csv": "Milenium",
+                    "investors_export.csv": "Investors",
+                    "erste_export.csv": "Erste",
+                    "noble_export.csv": "Noble",
+                    "finax_operacje.csv": "Finax",
+                    "finax_transakcje.csv": "Finax",
+                    "pekao_ikze_export.csv": "Pekao",
+                    "analizy_pl_export.csv": "Analizy.pl"
+                };
+                return sourceNames[key] || "Dane";
+            };
 
-            chrome.storage.local.get([
-                "finax_transakcje.csv",
-                "finax_operacje.csv",
-                "mbank_export.csv",
-                "paribas_export.csv",
-                "milenium_export.csv",
-                "investors_export.csv",
-                "erste_export.csv",
-                "noble_export.csv",
-                "bybit_export.csv",
-                "pekao_ikze_export.csv",
-                "analizy_pl_export.csv" 
-            ], (data) => {
-                actionContainer.innerHTML = "";
+            if (isMyfundImportPage) {
+                warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
+                warningContainer.style.display = "block";
+            }
 
-                if (tabUrl.includes("myfund.pl")) {
-                    warningContainer.textContent = "Upewnij się, że jesteś na właściwym portfelu!";
-                    warningContainer.style.display = "block";
+            if (!supportedPopupHost.test(tabUrl)) return;
+
+            const fragment = document.createDocumentFragment();
+            const appendButton = (label, onClick, variant = "primary") => {
+                const btn = document.createElement("button");
+                btn.className = `BUTTON${variant === "secondary" ? " button-secondary" : variant === "ghost" ? " button-ghost" : ""}`;
+                btn.textContent = label;
+                btn.style.display = "block";
+                btn.onclick = onClick;
+                fragment.appendChild(btn);
+            };
+
+            const importLinks = [{
+                    key: "bybit_export.csv",
+                    excluded: "sourcePlugin=ByBitWtyczka",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportPrzeplywowCrypto&_mrid=167&sourcePlugin=ByBitWtyczka"
+                },
+                {
+                    key: "mbank_export.csv",
+                    excluded: "sourcePlugin=mBankSFI",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=mBankSFI"
+                },
+                {
+                    key: "paribas_export.csv",
+                    excluded: "&sourcePlugin=BNPParibas",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=BNPParibas"
+                },
+                {
+                    key: "milenium_export.csv",
+                    excluded: "&sourcePlugin=MillenniumPPK",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=MillenniumPPK"
+                },
+                {
+                    key: "investors_export.csv",
+                    excluded: "&sourcePlugin=INVESTORSPPK",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=INVESTORSPPK"
+                },
+                {
+                    key: "erste_export.csv",
+                    excluded: "&sourcePlugin=SantanderPPK2",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=SantanderPPK2"
+                },
+                {
+                    key: "noble_export.csv",
+                    excluded: "&sourcePlugin=Noble",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=Noble"
+                },
+                {
+                    key: "finax_operacje.csv",
+                    excluded: "raport=ImportPrzeplywowCrypto",
+                    label: "Przejdź do myfund, aby dodać zapisane operacje",
+                    url: "https://myfund.pl/index.php?raport=ImportPrzeplywowCrypto&_mrid=284&sourcePlugin=Finax"
+                },
+                {
+                    key: "finax_transakcje.csv",
+                    excluded: "raport=ImportOperacji",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=Finax"
+                },
+                {
+                    key: "pekao_ikze_export.csv",
+                    excluded: "raport=ImportOperacji",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=PekaoTFI"
+                },
+                {
+                    key: "analizy_pl_export.csv",
+                    excluded: "sourcePlugin=analizyPl",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=analizyPl"
                 }
-                if (tabUrl.includes("bybit") || tabUrl.includes("noble") || tabUrl.includes("erste") || tabUrl.includes("investors") || tabUrl.includes("milenium") || tabUrl.includes("paribas") || tabUrl.includes("mbank") || tabUrl.includes("finax") || tabUrl.includes("myfund") || tabUrl.includes("pekao24") || tabUrl.includes("epekaotfi") || tabUrl.includes("analizy.pl")) {
-                    if (data["bybit_export.csv"] && !tabUrl.includes("sourcePlugin=ByBitWtyczka")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportPrzeplywowCrypto&_mrid=167&sourcePlugin=ByBitWtyczka", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["mbank_export.csv"] && !tabUrl.includes("sourcePlugin=mBankSFI")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=mBankSFI", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["paribas_export.csv"] && !tabUrl.includes("&sourcePlugin=BNPParibas")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=BNPParibas", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["milenium_export.csv"] && !tabUrl.includes("&sourcePlugin=MillenniumPPK")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=MillenniumPPK", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["investors_export.csv"] && !tabUrl.includes("&sourcePlugin=INVESTORSPPK")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=INVESTORSPPK", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["erste_export.csv"] && !tabUrl.includes("&sourcePlugin=SantanderPPK2")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacjiPPK&_mrid=167&sourcePlugin=SantanderPPK2", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["noble_export.csv"] && !tabUrl.includes("&sourcePlugin=Noble")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=Noble", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["finax_operacje.csv"] && !tabUrl.includes("raport=ImportPrzeplywowCrypto")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane operacje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportPrzeplywowCrypto&_mrid=284&sourcePlugin=Finax", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["finax_transakcje.csv"] && !tabUrl.includes("raport=ImportOperacji")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=Finax", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["pekao_ikze_export.csv"] && !tabUrl.includes("raport=ImportOperacji")) {
-                        const btn = document.createElement("button");
-                        btn.className = "BUTTON";
-                        btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-                        btn.style.display = "block"
-                        btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=PekaoTFI", "_blank");
-                        actionContainer.appendChild(btn);
-                    }
-                    if (data["analizy_pl_export.csv"] && !tabUrl.includes("sourcePlugin=analizyPl")) {
-    const btn = document.createElement("button");
-    btn.className = "BUTTON";
-    btn.textContent = "Przejdź do myfund, aby dodać zapisane transakcje";
-    btn.style.display = "block";
-    btn.onclick = () => window.open("https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=analizyPl", "_blank");
-    actionContainer.appendChild(btn);
-}
-                    if (tabUrl.includes("raport=ImportPrzeplywowCrypto")) {
-                        if (data["bybit_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_bybit,
-                                    args: [data["bybit_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                    }
-                    if (tabUrl.includes("raport=ImportOperacji") && !tabUrl.includes("raport=ImportOperacjiPPK")) {
-                        if (data["finax_transakcje.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions,
-                                    args: [data["finax_transakcje.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                        if (data["pekao_ikze_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_pekao,
-                                    args: [data["pekao_ikze_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                        if (data["mbank_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_mbank,
-                                    args: [data["mbank_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                        if (data["noble_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_noble,
-                                    args: [data["noble_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                        if (data["analizy_pl_export.csv"]) {
-    const pasteBtn = document.createElement("button");
-    pasteBtn.className = "BUTTON";
-    pasteBtn.style.display = "block";
-    pasteBtn.textContent = "Wklej pobrane transakcje";
-    pasteBtn.onclick = () => {
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            function: insertTransactions_analizyPl,
-            args: [data["analizy_pl_export.csv"]]
-        });
-    };
-    actionContainer.appendChild(pasteBtn);
-}
-                    }
-                    if (tabUrl.includes("raport=ImportOperacjiPPK")) {
-                        if (data["paribas_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_paribas,
-                                    args: [data["paribas_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                        if (data["milenium_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_milenium,
-                                    args: [data["milenium_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                        if (data["investors_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_investors,
-                                    args: [data["investors_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-                        if (data["erste_export.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane transakcje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertTransactions_erste,
-                                    args: [data["erste_export.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
+            ];
 
-                    }
-                    if (tabUrl.includes("raport=ImportPrzeplywowCrypto")) {
-                        if (data["finax_operacje.csv"]) {
-                            const pasteBtn = document.createElement("button");
-                            pasteBtn.className = "BUTTON";
-                            pasteBtn.style.display = "block"
-                            pasteBtn.textContent = "Wklej pobrane operacje";
-                            pasteBtn.onclick = () => {
-                                chrome.scripting.executeScript({
-                                    target: {
-                                        tabId: tab.id
-                                    },
-                                    function: insertOperations,
-                                    args: [data["finax_operacje.csv"]]
-                                });
-                            };
-                            actionContainer.appendChild(pasteBtn);
-                        }
-
-                    }
+            importLinks.forEach(({ key, excluded, label, url }) => {
+                if (data[key] && !tabUrl.includes(excluded)) {
+                    appendButton(`${label} (${getStoredDataSourceLabel(key)})`, () => window.open(url, "_blank"), "primary");
                 }
             });
+
+            const pasteConfigs = [];
+            if (isMyfundImportCryptoPage) {
+                pasteConfigs.push({
+                    key: "bybit_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'ByBitWtyczka',
+                        fileName: "bybit_export.csv",
+                        retryAttempts: 5
+                    }
+                });
+                pasteConfigs.push({
+                    key: "finax_operacje.csv",
+                    label: "Wklej pobrane operacje",
+                    importArgs: {
+                        selectValue: 'finaxXls',
+                        fileName: "finax_operacje.csv",
+                        retryAttempts: 5
+                    }
+                });
+            }
+            if (isMyfundImportOperationsPage) {
+                pasteConfigs.push({
+                    key: "finax_transakcje.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'finaxXls',
+                        fileName: "finax_transakcje.csv",
+                        retryAttempts: 0
+                    }
+                }, {
+                    key: "pekao_ikze_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'PekaoTFI',
+                        fileName: "pekao_ikze_export.csv",
+                        retryAttempts: 5
+                    }
+                }, {
+                    key: "mbank_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'mBankSFI',
+                        fileName: "mbank_export.csv",
+                        retryAttempts: 5
+                    }
+                }, {
+                    key: "noble_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'Noble',
+                        fileName: "noble_export.csv",
+                        retryAttempts: 5
+                    }
+                }, {
+                    key: "analizy_pl_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'analizyPl',
+                        fileName: "analizy_pl_export.csv",
+                        retryAttempts: 5
+                    }
+                });
+            }
+            if (isMyfundImportPpkPage) {
+                pasteConfigs.push({
+                    key: "paribas_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'BNPParibas',
+                        fileName: "paribas_export.csv",
+                        retryAttempts: 5
+                    }
+                }, {
+                    key: "milenium_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'MillenniumPPK',
+                        fileName: "milenium_export.csv",
+                        retryAttempts: 5
+                    }
+                }, {
+                    key: "investors_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'INVESTORSPPK',
+                        fileName: "investors_export.csv",
+                        retryAttempts: 5
+                    }
+                }, {
+                    key: "erste_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'SantanderPPK2',
+                        fileName: "erste_export.csv",
+                        retryAttempts: 5
+                    }
+                });
+            }
+
+            pasteConfigs.forEach(({ key, label, importArgs }) => {
+                if (data[key]) {
+                    appendButton(label, () => executeOnTab(tabId, importCsvToMyfund, [{
+                        ...importArgs,
+                        csvContent: data[key]
+                    }]), "primary");
+                }
+            });
+
+            actionContainer.appendChild(fragment);
         });
     }
     // ✅ Wyświetlenie komunikatu o powodzeniu na stronie
 
     function showSuccessMessageOnPage() {
         const message = document.createElement("div");
-        message.textContent = "✅ Dane zostały pomyślnie pobrane!";
+        message.textContent = "Dane zostały pomyślnie pobrane!";
         Object.assign(message.style, {
             position: "fixed",
             top: "50%",
@@ -1073,17 +764,82 @@ document.addEventListener("DOMContentLoaded", async () => {
             zIndex: "9999",
             backgroundColor: "#d4edda",
             color: "#155724",
-            padding: "16px 24px",
-            border: "2px solid #c3e6cb",
-            borderRadius: "10px",
-            fontWeight: "bold",
-            fontSize: "16px",
+            padding: "16px 22px",
+            border: "1px solid #c3e6cb",
+            borderRadius: "12px",
+            fontWeight: "600",
+            fontSize: "14px",
+            lineHeight: "1.4",
             textAlign: "center",
-            maxWidth: "90%"
+            maxWidth: "320px",
+            boxShadow: "0 10px 24px rgba(2, 14, 31, 0.12)"
         });
         document.body.appendChild(message);
         setTimeout(() => message.remove(), 3000);
     }
+
+function showExportErrorMessageOnPage(messageText = "Wystąpił błąd w pobieraniu danych.") {
+    const message = document.createElement("div");
+    message.textContent = messageText;
+    Object.assign(message.style, {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: "9999",
+        backgroundColor: "#f8d7da",
+        color: "#842029",
+        padding: "16px 22px",
+        border: "1px solid #f5c2c7",
+        borderRadius: "12px",
+        fontWeight: "600",
+        fontSize: "14px",
+        lineHeight: "1.4",
+        textAlign: "center",
+        maxWidth: "320px",
+        boxShadow: "0 10px 24px rgba(2, 14, 31, 0.12)"
+    });
+    document.body.appendChild(message);
+    setTimeout(() => message.remove(), 3000);
+}
+
+function showNoDataMessageOnPage(messageText = "Brak danych do pobrania.") {
+    const message = document.createElement("div");
+    message.textContent = messageText;
+    Object.assign(message.style, {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: "9999",
+        backgroundColor: "#fff3cd",
+        color: "#856404",
+        padding: "16px 22px",
+        border: "1px solid #ffeeba",
+        borderRadius: "12px",
+        fontWeight: "600",
+        fontSize: "14px",
+        lineHeight: "1.4",
+        textAlign: "center",
+        maxWidth: "320px",
+        boxShadow: "0 10px 24px rgba(2, 14, 31, 0.12)"
+    });
+    document.body.appendChild(message);
+    setTimeout(() => message.remove(), 3000);
+}
+
+function getSavedCsvState(value) {
+    if (typeof value !== "string") return "error";
+
+    const lines = value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line !== "");
+
+    if (!lines.length) return "error";
+    if (lines.length === 1) return "empty";
+    return "success";
+}
 
 function showClearMessageOnPage(hasData) {
     const message = document.createElement("div");
@@ -1343,10 +1099,7 @@ if (
     // 🟢 Obsługa kliknięcia przycisku eksportu - wybór odpowiedniej funkcji w zależności od strony
 
     exportBtn.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
+        const tab = await getActiveTab();
         const tabUrl = tab.url;
 
         let funcToRun = null;
@@ -1372,119 +1125,35 @@ if (
 }
 
         if (funcToRun) {
-            chrome.scripting.executeScript({
-                target: {
-                    tabId: tab.id
-                },
-                function: funcToRun,
-                args: [STORAGE_KEYS.ALL] // <— przekazujemy listę kluczy
-            });
+            executeOnTab(tab.id, funcToRun, [STORAGE_KEYS.ALL]);
 
         } else {
             alert("Nieobsługiwana strona.");
         }
     });
     bybitFundingBtn?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: extractAndSaveTable_bybitFunding,
-            args: [STORAGE_KEYS.EXCEPT_BYBIT] // <— przekazujemy EXCEPT listę
-        });
+        const tab = await getActiveTab();
+        executeOnTab(tab.id, extractAndSaveTable_bybitFunding, [STORAGE_KEYS.EXCEPT_BYBIT]);
 
     });
     // BYBIT – tryb rozszerzony: uruchom placeholdery
-    document.getElementById("bybitDepositSpotBtn")?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: bybit_extract_depositSpot
-        });
-    });
-    document.getElementById("bybitWithdrawSpotBtn")?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: bybit_extract_withdrawSpot
-        });
-    });
-    document.getElementById("bybitOneClickBuyBtn")?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: bybit_extract_oneClickBuy
-        });
-    });
-    document.getElementById("bybitP2PBtn")?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: bybit_extract_p2p
-        });
-    });
-    document.getElementById("bybitDepositFiatBtn")?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: bybit_extract_depositFiat
-        });
-    });
-    document.getElementById("bybitWithdrawFiatBtn")?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: bybit_extract_withdrawFiat
+    [{ id: "bybitDepositSpotBtn", func: bybit_extract_depositSpot },
+        { id: "bybitWithdrawSpotBtn", func: bybit_extract_withdrawSpot },
+        { id: "bybitOneClickBuyBtn", func: bybit_extract_oneClickBuy },
+        { id: "bybitP2PBtn", func: bybit_extract_p2p },
+        { id: "bybitDepositFiatBtn", func: bybit_extract_depositFiat },
+        { id: "bybitWithdrawFiatBtn", func: bybit_extract_withdrawFiat }
+    ].forEach(({ id, func }) => {
+        document.getElementById(id)?.addEventListener("click", async () => {
+            const tab = await getActiveTab();
+            executeOnTab(tab.id, func);
         });
     });
 
 
     bybitUnifiedBtn?.addEventListener("click", async () => {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        chrome.scripting.executeScript({
-            target: {
-                tabId: tab.id
-            },
-            function: extractAndSaveTable_bybitUnified,
-            args: [STORAGE_KEYS.EXCEPT_BYBIT]
-        });
+        const tab = await getActiveTab();
+        executeOnTab(tab.id, extractAndSaveTable_bybitUnified, [STORAGE_KEYS.EXCEPT_BYBIT]);
 
     });
 
@@ -1496,48 +1165,69 @@ clearDataIcon.addEventListener("click", () => {
                 checkStoredData();
                 actionContainer.innerHTML = "";
                 updateActionButtons();
-                chrome.tabs.query({
-    active: true,
-    currentWindow: true
-}, (tabs) => {
-    chrome.tabs.sendMessage(tabs[0].id, {
-        action: "showPageMessage",
-        hasData: true
-    }, () => { if (chrome.runtime.lastError) {} });
-});
+                chrome.tabs.sendMessage(tabId, {
+                    action: "showPageMessage",
+                    hasData: true
+                }, () => {
+                    if (chrome.runtime.lastError) {}
+                });
             }
         });
     } else {
-        chrome.tabs.query({
-    active: true,
-    currentWindow: true
-}, (tabs) => {
-    chrome.tabs.sendMessage(tabs[0].id, {
-        action: "showPageMessage",
-        hasData: false
-    }, () => { if (chrome.runtime.lastError) {} });
-});
+        chrome.tabs.sendMessage(tabId, {
+            action: "showPageMessage",
+            hasData: false
+        }, () => {
+            if (chrome.runtime.lastError) {}
+        });
     }
 });
     // 🔔 Po zapisaniu danych: pokaż komunikat i odśwież przyciski
 
     chrome.runtime.onMessage.addListener((request) => {
         if (request.action === "dataSaved") {
-            chrome.tabs.query({
-                active: true,
-                currentWindow: true
-            }, (tabs) => {
-                const id = tabs?.[0]?.id;
-                if (id) {
-                    chrome.scripting.executeScript({
-                        target: {
-                            tabId: id
-                        },
-                        function: showSuccessMessageOnPage
-                    });
+            const targetKey = request.filename;
+            const reportResult = (result) => {
+                if (result === "success") {
+                    executeOnTab(tabId, showSuccessMessageOnPage);
+                } else if (result === "empty") {
+                    executeOnTab(tabId, showNoDataMessageOnPage, ["Brak danych do pobrania."]);
+                } else {
+                    executeOnTab(tabId, showExportErrorMessageOnPage, ["Wystąpił błąd w pobieraniu danych."]);
                 }
+                checkStoredData();
                 setTimeout(updateActionButtons, 200);
+            };
+
+            if (targetKey) {
+                chrome.storage.local.get(targetKey, (data) => {
+                    reportResult(getSavedCsvState(data?.[targetKey]));
+                });
+                return;
+            }
+
+            chrome.storage.local.get(STORAGE_KEYS.ALL, (items) => {
+                const result = Object.values(items)
+                    .map((value) => getSavedCsvState(value))
+                    .find((state) => state === "success") ||
+                    Object.values(items)
+                    .map((value) => getSavedCsvState(value))
+                    .find((state) => state === "empty") ||
+                    "error";
+                reportResult(result);
             });
+        }
+
+        if (request.action === "dataSaveEmpty") {
+            executeOnTab(tabId, showNoDataMessageOnPage, [request.message || "Brak danych do pobrania."]);
+            checkStoredData();
+            setTimeout(updateActionButtons, 200);
+        }
+
+        if (request.action === "dataSaveFailed") {
+            executeOnTab(tabId, showExportErrorMessageOnPage, [request.message || "Wystąpił błąd w pobieraniu danych."]);
+            checkStoredData();
+            setTimeout(updateActionButtons, 200);
         }
     });
 
@@ -2041,11 +1731,14 @@ function extractAndSaveTable_bybitFunding(ALL_KEYS_EXCEPT_BYBIT) {
                 }, () => {
                     if (!chrome.runtime.lastError) {
                         chrome.runtime.sendMessage({
-                            action: "dataSaved"
+                            action: "dataSaved",
+                            filename: BYBIT_KEY
                         });
                         chrome.runtime.sendMessage({
                             action: "checkStorage"
                         });
+                    } else {
+                        chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                     }
                 });
             });
@@ -2060,7 +1753,7 @@ function extractAndSaveTable_bybitFunding(ALL_KEYS_EXCEPT_BYBIT) {
             // a) zbierz WSZYSTKIE strony funding
             const allRows = await collectAllPagesRows();
             if (!allRows.length) {
-                alert("Brak danych do eksportu (Funding).");
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
 
@@ -2071,7 +1764,7 @@ function extractAndSaveTable_bybitFunding(ALL_KEYS_EXCEPT_BYBIT) {
             const finalCsvRows = buildAllCsvRowsFromGroups(groups);
 
             if (!finalCsvRows.length) {
-                alert("Zebrano rekordy Funding, ale żaden nie pasuje do reguł eksportu.");
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
 
@@ -2079,7 +1772,7 @@ function extractAndSaveTable_bybitFunding(ALL_KEYS_EXCEPT_BYBIT) {
             saveCsv(finalCsvRows);
         } catch (e) {
             console.error("Bybit Funding error:", e);
-            alert("Błąd podczas zbierania danych z Funding (zobacz konsolę F12).");
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -2276,11 +1969,14 @@ function extractAndSaveTable_bybitUnified(ALL_KEYS_EXCEPT_BYBIT) {
                     () => {
                         if (!chrome.runtime.lastError) {
                             chrome.runtime.sendMessage({
-                                action: "dataSaved"
+                                action: "dataSaved",
+                                filename: BYBIT_KEY
                             });
                             chrome.runtime.sendMessage({
                                 action: "checkStorage"
                             });
+                        } else {
+                            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                         }
                     }
                 );
@@ -2292,13 +1988,13 @@ function extractAndSaveTable_bybitUnified(ALL_KEYS_EXCEPT_BYBIT) {
         try {
             const rows = await collectAllPages();
             if (!rows.length) {
-                alert("Brak danych do eksportu (Unified Trading Account).");
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
             saveCsv(rows);
         } catch (e) {
             console.error("Bybit Unified error:", e);
-            alert("Błąd podczas zbierania danych z Unified (zobacz konsolę F12).");
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -2409,7 +2105,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     // Najpierw znajdź JAKIKOLWIEK wiersz, by odnaleźć kontener
     const anyRow = getMainRows()[0];
     if (!anyRow) {
-        alert("Nie znaleziono wierszy historii mBank.");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
         return;
     }
 
@@ -2441,7 +2137,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     // Teraz pobierz pełną listę
     const rows = getMainRows();
     if (!rows.length) {
-        alert("Po preloadzie nadal brak wierszy.");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
         return;
     }
 
@@ -2491,7 +2187,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
                 // Nie udało się rozwinąć – zanotuj minimalne info (wartość + typ), żeby czegoś nie zgubić
                 const minimal = (['operacja', ''].includes(typeText) ? 'Operacja' :
                     typeText.includes('odkup') ? 'Sprzedaż' :
-                    typeText.includes('nabycie') ? 'Kupno' :
+                    (typeText.includes('nabycie') || typeText.includes('dopłata')) ? 'Kupno' :
                     typeText.includes('konwersja') ? 'Konwersja' : typeText);
                 results.push([minimal, "", "", "", valueAbs.toFixed(2), ""].join(";"));
                 continue;
@@ -2514,7 +2210,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
 
             let rodzaj;
             if (typeText.includes("odkup")) rodzaj = "Sprzedaż";
-            else if (typeText.includes("nabycie")) rodzaj = "Kupno";
+            else if (typeText.includes("nabycie") || typeText.includes("dopłata")) rodzaj = "Kupno";
             else if (typeText.includes("konwersja")) rodzaj = "Konwersja";
             else rodzaj = (typeText || "Operacja").replace(/\s+/g, " ");
 
@@ -2589,7 +2285,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     }
 
     if (!results.length) {
-        alert("Brak danych do eksportu.");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
         return;
     }
 
@@ -2604,11 +2300,14 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
         }, () => {
             if (!chrome.runtime.lastError) {
                 chrome.runtime.sendMessage({
-                    action: "dataSaved"
+                    action: "dataSaved",
+                    filename
                 });
                 chrome.runtime.sendMessage({
                     action: "checkStorage"
                 });
+            } else {
+                chrome.runtime.sendMessage({ action: "dataSaveFailed" });
             }
         });
     });
@@ -2709,7 +2408,10 @@ transactions.forEach((tr) => {
             ]);
         });
 
-        if (rows.length <= 1) return alert("Brak danych do eksportu.");
+        if (rows.length <= 1) {
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
+        }
 
         const csvContent = rows.map(r => r.join(";")).join("\n");
 
@@ -2719,11 +2421,14 @@ transactions.forEach((tr) => {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -2834,7 +2539,8 @@ transactions.forEach((tr) => {
         });
 
         if (rows.length <= 1) {
-            return alert("Brak danych do eksportu.");
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
         }
 
         const csvContent = rows.map(r => r.join(";")).join("\n");
@@ -2845,11 +2551,14 @@ transactions.forEach((tr) => {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -2978,7 +2687,10 @@ function extractAndSaveTable_erste(STORAGE_KEYS_ALL) {
             ]);
         });
 
-        if (rows.length <= 1) return alert("Brak danych do eksportu.");
+        if (rows.length <= 1) {
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
+        }
 
         const csvContent = rows.map((row) => row.join(";")).join("\n");
 
@@ -2988,11 +2700,14 @@ function extractAndSaveTable_erste(STORAGE_KEYS_ALL) {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -3096,7 +2811,10 @@ transactions.forEach((tr) => {
             ]);
         });
 
-        if (rows.length <= 1) return alert("Brak danych do eksportu.");
+        if (rows.length <= 1) {
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
+        }
 
         const csvContent = rows.map(row => row.join(";")).join("\n");
 
@@ -3106,11 +2824,14 @@ transactions.forEach((tr) => {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -3134,7 +2855,10 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
 
         // Szukamy wewnątrz konkretnie sekcji group-R
         const container = document.querySelector("#transactions-group-R .hidden.md\\:block");
-        if (!container) return alert("Nie znaleziono danych do eksportu.");
+        if (!container) {
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
+        }
 
         const rowDivs = container.querySelectorAll(
             ".flex.flex-row.gap-8.items-center.border-b.border-\\[\\#D2D1D1\\]"
@@ -3155,7 +2879,10 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
             }
         });
 
-        if (rows.length === 1) return alert("Brak danych do eksportu.");
+        if (rows.length === 1) {
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
+        }
         csvContent = rows.map(row => row.join(";")).join("\n");
 
     } else {
@@ -3165,7 +2892,10 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
 
         // Szukamy wewnątrz konkretnie sekcji group-F
         const container = document.querySelector("#transactions-group-F .hidden.md\\:block");
-        if (!container) return alert("Nie znaleziono danych do eksportu.");
+        if (!container) {
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
+        }
 
         const rowDivs = container.querySelectorAll(
             ".flex.flex-row.gap-8.items-center.border-b.border-\\[\\#D2D1D1\\]"
@@ -3187,7 +2917,10 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
             }
         });
 
-        if (rows.length === 1) return alert("Brak danych do eksportu.");
+        if (rows.length === 1) {
+            chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+            return;
+        }
         csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(";")).join("\n");
     }
 
@@ -3197,11 +2930,14 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
         }, () => {
             if (!chrome.runtime.lastError) {
                 chrome.runtime.sendMessage({
-                    action: "dataSaved"
+                    action: "dataSaved",
+                    filename
                 });
                 chrome.runtime.sendMessage({
                     action: "checkStorage"
                 });
+            } else {
+                chrome.runtime.sendMessage({ action: "dataSaveFailed" });
             }
         });
     });
@@ -3257,7 +2993,7 @@ async function extractAndSaveTable_pekaoIkze(STORAGE_KEYS_ALL) {
 
     const firstRow = document.querySelector(rowSelector);
     if (!firstRow) {
-        alert("Nie znaleziono wierszy transakcji (tr.cdk-row-default). Upewnij się, że jesteś w Historii transakcji IKZE.");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
         return;
     }
 
@@ -3293,7 +3029,7 @@ async function extractAndSaveTable_pekaoIkze(STORAGE_KEYS_ALL) {
 
     const rows = Array.from(document.querySelectorAll(rowSelector));
     if (!rows.length) {
-        alert("Brak transakcji do eksportu.");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
         return;
     }
 
@@ -3384,7 +3120,7 @@ async function extractAndSaveTable_pekaoIkze(STORAGE_KEYS_ALL) {
     }
 
     if (!results.length) {
-        alert("Nie udało się zebrać danych (brak wyników po parsowaniu).");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
         return;
     }
 
@@ -3398,11 +3134,14 @@ async function extractAndSaveTable_pekaoIkze(STORAGE_KEYS_ALL) {
         }, () => {
             if (!chrome.runtime.lastError) {
                 chrome.runtime.sendMessage({
-                    action: "dataSaved"
+                    action: "dataSaved",
+                    filename
                 });
                 chrome.runtime.sendMessage({
                     action: "checkStorage"
                 });
+            } else {
+                chrome.runtime.sendMessage({ action: "dataSaveFailed" });
             }
         });
     });
@@ -3418,7 +3157,8 @@ function extractAndSaveTable_analizyPl(STORAGE_KEYS_ALL) {
     );
 
     if (!containers.length) {
-        return alert("Nie znaleziono transakcji. Upewnij się, że jesteś na zakładce 'Transakcje' w portfelu.");
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+        return;
     }
 
     containers.forEach(container => {
@@ -3482,15 +3222,20 @@ function extractAndSaveTable_analizyPl(STORAGE_KEYS_ALL) {
         ]);
     });
 
-    if (rows.length <= 1) return alert("Brak danych do eksportu.");
+    if (rows.length <= 1) {
+        chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
+        return;
+    }
 
     const csvContent = rows.map(r => r.join(";")).join("\n");
 
     chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
         chrome.storage.local.set({ [filename]: csvContent }, () => {
             if (!chrome.runtime.lastError) {
-                chrome.runtime.sendMessage({ action: "dataSaved" });
+                chrome.runtime.sendMessage({ action: "dataSaved", filename });
                 chrome.runtime.sendMessage({ action: "checkStorage" });
+            } else {
+                chrome.runtime.sendMessage({ action: "dataSaveFailed" });
             }
         });
     });
@@ -3616,11 +3361,14 @@ function bybit_extract_depositSpot() {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename: BYBIT_KEY
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -3630,13 +3378,13 @@ function bybit_extract_depositSpot() {
         try {
             const rows = await collectAllPages();
             if (!rows.length) {
-                alert("Brak rekordów ze statusem Completed w sekcji Deposit (Funding).");
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
             saveCsv(rows);
         } catch (e) {
             console.error("Bybit Deposit (Funding) error:", e);
-            alert("Błąd podczas zbierania danych z Deposit (Funding). Sprawdź konsolę (F12).");
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -3767,11 +3515,14 @@ function bybit_extract_withdrawSpot() {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename: BYBIT_KEY
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -3781,13 +3532,13 @@ function bybit_extract_withdrawSpot() {
         try {
             const rows = await collectAllPages();
             if (!rows.length) {
-                alert("Brak rekordów ze statusem 'Successfully Transferred' w sekcji Withdraw (Funding).");
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
             saveCsv(rows);
         } catch (e) {
             console.error("Bybit Withdraw (Funding) error:", e);
-            alert("Błąd podczas zbierania danych z Withdraw (Funding). Sprawdź konsolę (F12).");
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -4010,11 +3761,14 @@ function bybit_extract_oneClickBuy() {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename: BYBIT_KEY
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -4024,13 +3778,13 @@ function bybit_extract_oneClickBuy() {
         try {
             const rows = await collectAllPages();
             if (!rows.length) {
-                alert("Brak rekordów ze statusem 'Success' w sekcji One-Click Buy.");
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
             saveCsv(rows);
         } catch (e) {
             console.error("Bybit One-Click Buy error:", e);
-            alert("Błąd podczas zbierania danych z One-Click Buy (sprawdź konsolę F12).");
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -4262,11 +4016,14 @@ function bybit_extract_p2p() {
             }, () => {
                 if (!chrome.runtime.lastError) {
                     chrome.runtime.sendMessage({
-                        action: "dataSaved"
+                        action: "dataSaved",
+                        filename: BYBIT_KEY
                     });
                     chrome.runtime.sendMessage({
                         action: "checkStorage"
                     });
+                } else {
+                    chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                 }
             });
         });
@@ -4276,13 +4033,13 @@ function bybit_extract_p2p() {
         try {
             const rows = await collectAllPages();
             if (!rows.length) {
-                alert("Brak rekordów P2P ze statusem 'Completed'.");
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
             saveCsv(rows);
         } catch (e) {
             console.error("Bybit P2P error:", e);
-            alert("Błąd podczas zbierania danych z P2P (sprawdź konsolę F12).");
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -4471,11 +4228,14 @@ function bybit_extract_depositFiat() {
                 () => {
                     if (!chrome.runtime.lastError) {
                         chrome.runtime.sendMessage({
-                            action: "dataSaved"
+                            action: "dataSaved",
+                            filename: BYBIT_KEY
                         });
                         chrome.runtime.sendMessage({
                             action: "checkStorage"
                         });
+                    } else {
+                        chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                     }
                 }
             );
@@ -4486,17 +4246,13 @@ function bybit_extract_depositFiat() {
         try {
             const rows = await collectAllPages();
             if (!rows.length) {
-                alert(
-                    "Brak rekordów Deposit Fiat ze statusem 'Completed'."
-                );
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
             saveCsv(rows);
         } catch (e) {
             console.error("Bybit Deposit Fiat error:", e);
-            alert(
-                "Błąd podczas zbierania danych z Deposit Fiat (sprawdź konsolę F12)."
-            );
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -4682,11 +4438,14 @@ function bybit_extract_withdrawFiat() {
                 () => {
                     if (!chrome.runtime.lastError) {
                         chrome.runtime.sendMessage({
-                            action: "dataSaved"
+                            action: "dataSaved",
+                            filename: BYBIT_KEY
                         });
                         chrome.runtime.sendMessage({
                             action: "checkStorage"
                         });
+                    } else {
+                        chrome.runtime.sendMessage({ action: "dataSaveFailed" });
                     }
                 }
             );
@@ -4697,17 +4456,13 @@ function bybit_extract_withdrawFiat() {
         try {
             const rows = await collectAllPages();
             if (!rows.length) {
-                alert(
-                    "Brak rekordów Withdraw Fiat ze statusem 'Completed'."
-                );
+                chrome.runtime.sendMessage({ action: "dataSaveEmpty" });
                 return;
             }
             saveCsv(rows);
         } catch (e) {
             console.error("Bybit Withdraw Fiat error:", e);
-            alert(
-                "Błąd podczas zbierania danych z Withdraw Fiat (sprawdź konsolę F12)."
-            );
+            chrome.runtime.sendMessage({ action: "dataSaveFailed" });
         }
     })();
 }
@@ -4788,58 +4543,20 @@ document.addEventListener("DOMContentLoaded", updateVisibleIcon);
 
 // 🌐 Obsługa kliknięć w ikonki na dole popupu
 
-document.getElementById("finaxIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://finax.eu"
-    });
-});
-document.getElementById("myfundIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://myfund.pl"
-    });
-});
-document.getElementById("mbankIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://www.mbank.pl"
-    });
-});
-document.getElementById("paribasIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://sti24.tfi.bnpparibas.pl/"
-    });
-});
-document.getElementById("mileniumIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://millenniumtfi.sti24.pl/"
-    });
-});
-document.getElementById("investorsIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://online24.investors.pl/"
-    });
-});
-document.getElementById("ersteIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://online.erste-ppk.pl/"
-    });
-});
-document.getElementById("nobleIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://mynsapp.noblesecurities.pl/"
-    });
-});
-document.getElementById("pekaoIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: " https://www.pekao24.pl"
-    });
-});
-document.getElementById("analizyPlIcon").addEventListener("click", () => {
-    chrome.tabs.create({ url: "https://www.analizy.pl" });
-});
-document.getElementById("bybitIcon").addEventListener("click", () => {
-    chrome.tabs.create({
-        url: "https://www.bybit.com"
-    });
+[
+    ["finaxIcon", "https://finax.eu"],
+    ["myfundIcon", "https://myfund.pl"],
+    ["mbankIcon", "https://www.mbank.pl"],
+    ["paribasIcon", "https://sti24.tfi.bnpparibas.pl/"],
+    ["mileniumIcon", "https://millenniumtfi.sti24.pl/"],
+    ["investorsIcon", "https://online24.investors.pl/"],
+    ["ersteIcon", "https://online.erste-ppk.pl/"],
+    ["nobleIcon", "https://mynsapp.noblesecurities.pl/"],
+    ["pekaoIcon", "https://www.pekao24.pl"],
+    ["analizyPlIcon", "https://www.analizy.pl"],
+    ["bybitIcon", "https://www.bybit.com"]
+].forEach(([id, url]) => {
+    document.getElementById(id).addEventListener("click", () => openInNewTab(url));
 });
 
 const clearDataIcon = document.getElementById("clearDataIcon");
