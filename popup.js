@@ -1,3 +1,4 @@
+// Globalna konfiguracja popupu i kluczy używanych do wymiany danych między serwisami.
 const BYBIT_EXTENDED_FLAG = "bybit_extended_mode"; // "yes" | "no"
 
 // 🗂️ Klucze używane w pamięci przeglądarki
@@ -31,6 +32,7 @@ const STORAGE_KEYS = {
     ]
 };
 
+// Zestaw prostych helperów do pracy na aktywnej karcie i do uruchamiania skryptów w kontekście strony.
 const getActiveTab = async () => {
     const [tab] = await chrome.tabs.query({
         active: true,
@@ -54,6 +56,7 @@ const openInNewTab = (url) => chrome.tabs.create({
     url
 });
 
+// Wspólny wygląd komunikatów pokazywanych bezpośrednio na stronie źródłowej lub w MyFund.
 const PAGE_MESSAGE_THEME = {
     success: {
         backgroundColor: "#d4edda",
@@ -150,6 +153,7 @@ function importCsvToMyfund({
     setTimeout(tryClick, 300);
 }
 
+// Wczesna inicjalizacja popupu ustawia wysokość okna zależnie od bardziej rozbudowanego widoku Bybit.
 document.addEventListener("DOMContentLoaded", async () => {
     const tab = await getActiveTab();
     const url = tab.url || "";
@@ -164,6 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 
+// Główny bootstrap popupu: rozpoznanie aktywnej strony, konfiguracja przycisków i podpięcie zdarzeń.
 document.addEventListener("DOMContentLoaded", async () => {
     const infoContainer = document.getElementById("info");
     const exportBtn = document.getElementById("exportBtn");
@@ -182,10 +187,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const tabId = tab?.id;
     const isMbankHistoryPage = (url) => url.includes("mbank.pl") && (
         url.includes("wallet/sfi/history") ||
-        url.includes("investment-funds/history")
+        url.includes("investment-funds/history") ||
+        url.includes("investment-pension/history")
     );
     const supportedPopupHost = /bybit|noble|erste|investors|milenium|paribas|mbank|finax|myfund|pekao24|epekaotfi|analizy\.pl/i;
 
+    // Pomocnik do wypełnienia formularza importu w MyFund przygotowanym plikiem CSV.
     const setImportFile = ({
         selectValue,
         fileName,
@@ -311,6 +318,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // Specjalny ekstraktor Noble działa na rozwijanych wierszach i składa dane z części głównej oraz detali.
     function extractAndSaveTable_noble(STORAGE_KEYS_ALL) {
     const filename = "noble_export.csv";
     const headers = [
@@ -523,6 +531,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
+    // Dynamicznie buduje akcje popupu na podstawie aktualnej strony i plików zapisanych w pamięci rozszerzenia.
     function updateActionButtons() {
         chrome.storage.local.get(STORAGE_KEYS.ALL, (data) => {
             actionContainer.innerHTML = "";
@@ -778,6 +787,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(() => message.remove(), 3000);
     }
 
+// Zestaw pomocników poniżej mapuje stan eksportu na czytelne komunikaty dla użytkownika.
 function showExportErrorMessageOnPage(messageText = "Wystąpił błąd w pobieraniu danych.") {
     const message = document.createElement("div");
     message.textContent = messageText;
@@ -878,6 +888,7 @@ function showClearMessageOnPage(hasData) {
     setTimeout(() => message.remove(), 3000);
 }
 
+// Jeśli użytkownik otworzył popup poza obsługiwaną stroną, pokazujemy tylko listę wspieranych serwisów.
 if (
     !tabUrl.includes("finax.eu") &&
     !tabUrl.includes("myfund.pl") &&
@@ -919,6 +930,7 @@ if (
     exportBtn.style.display = "none";
 }
     // BYBIT – informacja + 2 przyciski (aktywny zależnie od URL)
+    // Dla Bybit popup przełącza się w tryb wieloetapowego eksportu i aktywuje właściwe akcje zależnie od URL-a.
     if (tabUrl.includes("bybit.com")) {
         // referencje
         const bybitExtendedInfo = document.getElementById("bybitExtendedInfo");
@@ -984,10 +996,7 @@ if (
             bybitUnifiedBtn.disabled = !isUnified;
         }
     }
-
-
-
-
+    // Routing widoku popupu: dla każdego serwisu pokazujemy instrukcje albo odblokowujemy eksport.
     if (tabUrl.includes("finax.eu") && !tabUrl.includes("transactions")) {
         document.getElementById("grayBoxa").style.display = "block";
         exportBtn.style.display = "none";
@@ -1096,7 +1105,7 @@ if (
 
     */
 
-    // 🟢 Obsługa kliknięcia przycisku eksportu - wybór odpowiedniej funkcji w zależności od strony
+    // Główny przycisk eksportu deleguje wykonanie do ekstraktora właściwego dla bieżącej platformy.
 
     exportBtn.addEventListener("click", async () => {
         const tab = await getActiveTab();
@@ -1131,6 +1140,7 @@ if (
             alert("Nieobsługiwana strona.");
         }
     });
+    // Dodatkowe przyciski Bybit uruchamiają osobne przepływy dla Funding i Unified oraz sekcji szczegółowych.
     bybitFundingBtn?.addEventListener("click", async () => {
         const tab = await getActiveTab();
         executeOnTab(tab.id, extractAndSaveTable_bybitFunding, [STORAGE_KEYS.EXCEPT_BYBIT]);
@@ -1157,6 +1167,7 @@ if (
 
     });
 
+// Ikona kosza czyści wszystkie zapisane CSV i odświeża stan popupu oraz komunikat na stronie.
 clearDataIcon.addEventListener("click", () => {
     const hasData = clearDataIcon.dataset.hasData === "true";
     if (hasData) {
@@ -1232,12 +1243,14 @@ clearDataIcon.addEventListener("click", () => {
     });
 
 });
+// Drugi nasłuch obsługuje lekkie odświeżenie UI, gdy inna część rozszerzenia pyta o stan pamięci.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "checkStorage") {
         checkStoredData();
     }
 });
 
+// Ekstraktory Bybit są podzielone na dwa tryby: Funding i Unified, bo każdy ma inną strukturę danych i zasady scalania CSV.
 // ===================== BYBIT FUNDING =====================
 function extractAndSaveTable_bybitFunding(ALL_KEYS_EXCEPT_BYBIT) {
     const BYBIT_KEY = "bybit_export.csv";
@@ -1779,6 +1792,7 @@ function extractAndSaveTable_bybitFunding(ALL_KEYS_EXCEPT_BYBIT) {
 
 
 
+// Ten ekstraktor zbiera historię z Unified Trading Account i podmienia tylko rekordy tego źródła w zapisanym pliku.
 // ===================== BYBIT UNIFIED TRADING ACCOUNT =====================
 function extractAndSaveTable_bybitUnified(ALL_KEYS_EXCEPT_BYBIT) {
     const BYBIT_KEY = "bybit_export.csv";
@@ -2001,6 +2015,7 @@ function extractAndSaveTable_bybitUnified(ALL_KEYS_EXCEPT_BYBIT) {
 
 
 
+// Eksport mBank musi obsłużyć wirtualizowaną tabelę, dociąganie kolejnych wierszy i kilka wariantów DOM dla detali.
 // 📋 mBank SFI – preload wszystkich wierszy + solidniejsze rozwijanie detali + podatek tylko przy konwersji
 async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -2313,6 +2328,7 @@ async function extractAndSaveTable_mbank(STORAGE_KEYS_ALL) {
     });
 }
 
+// Ekstraktory PPK korzystają z podobnego schematu: rozwinięcie szczegółów transakcji i odczyt pól z komponentów Angulara.
 function extractAndSaveTable_paribas(STORAGE_KEYS_ALL) {
     const filename = "paribas_export.csv";
     const headers = [
@@ -2840,6 +2856,7 @@ transactions.forEach((tr) => {
 
 // 📋 Wyciągnięcie danych z tabel Finax i zapisanie jako CSV
 
+// Finax ma osobną logikę dla transakcji i operacji, bo pochodzą z dwóch różnych sekcji interfejsu.
 function extractAndSaveTable(STORAGE_KEYS_ALL) {
     let rows = [];
     let filename = "";
@@ -2945,6 +2962,7 @@ function extractAndSaveTable(STORAGE_KEYS_ALL) {
 
 // ===================== PEKAO24 IKZE =====================
 // 📋 Pekao24 IKZE – lista transakcji + rozwijanie detali + eksport do CSV
+// Pekao i Analizy.pl mają własne ekstraktory, bo ich widoki nie pasują do wspólnego modelu PPK/Finax.
 async function extractAndSaveTable_pekaoIkze(STORAGE_KEYS_ALL) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -3241,6 +3259,7 @@ function extractAndSaveTable_analizyPl(STORAGE_KEYS_ALL) {
     });
 }
 
+// Szczegółowe ekstraktory Bybit rozbijają historię Funding na osobne sekcje i dopisują je do jednego pliku wynikowego.
 function bybit_extract_depositSpot() {
     const BYBIT_KEY = "bybit_export.csv";
     const SOURCE = "Funding_Deposit";
@@ -4471,6 +4490,7 @@ function bybit_extract_withdrawFiat() {
 
 // 🎯 Pokaż ikonę Finax/mBank w zależności od aktywnej zakładki
 
+// Stopka popupu pokazuje tylko ikonę serwisu związanego z aktywną kartą, żeby ułatwić orientację użytkownikowi.
 function updateVisibleIcon() {
     const finaxIcon = document.getElementById("finaxIcon");
     const mbankIcon = document.getElementById("mbankIcon");
@@ -4543,6 +4563,7 @@ document.addEventListener("DOMContentLoaded", updateVisibleIcon);
 
 // 🌐 Obsługa kliknięć w ikonki na dole popupu
 
+// Kliknięcie ikony w stopce otwiera stronę główną danego serwisu w nowej karcie.
 [
     ["finaxIcon", "https://finax.eu"],
     ["myfundIcon", "https://myfund.pl"],
@@ -4562,6 +4583,7 @@ document.addEventListener("DOMContentLoaded", updateVisibleIcon);
 const clearDataIcon = document.getElementById("clearDataIcon");
 
 
+// Stan pamięci steruje ikoną kosza i dodatkowymi akcjami zależnymi od tego, czy jakiś CSV jest już zapisany.
 function checkStoredData() {
     chrome.storage.local.get(STORAGE_KEYS.ALL, (items) => {
         const hasData = Object.values(items).some(val => !!val);

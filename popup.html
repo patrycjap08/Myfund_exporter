@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Finax Exporter</title>
     <style>
+        /* Paleta kolorów i podstawowe tokeny używane w całym popupie. */
         :root {
             --Neutral0: #ffffff;
             --Neutral200: #F7F7FB;
@@ -33,6 +34,7 @@
             --ShadowSoft: 0 10px 24px rgba(2, 14, 31, 0.08);
         }
 
+        /* Bazowy układ okna popupu i reset domyślnych marginesów. */
         html, body {
           margin: 0;
           padding: 0;
@@ -51,6 +53,7 @@
         }
 
 
+        /* Ikony i grafiki używane w nagłówku oraz dolnym pasku. */
         .icon {
             width: 55px;
             height: 55px;
@@ -77,6 +80,7 @@
             padding: 6px 12px;
         }
 
+        /* Wspólny styl dla boksów z instrukcjami, ostrzeżeniami i podpowiedziami. */
         #grayBoxa,
         #grayBoxd,
         #bybitInfoBox,
@@ -115,6 +119,7 @@
             /* lub none, jeśli nie chcesz podkreślenia */
         }
 
+        /* Główna kolumna akcji budowana dynamicznie przez popup.js. */
         #actionContainer {
             width: 100%;
             display: flex;
@@ -122,6 +127,7 @@
             gap: 9px;
         }
 
+        /* Wspólny wygląd przycisków eksportu, importu i akcji dodatkowych. */
         .BUTTON,
         #exportBtn {
             appearance: none;
@@ -201,6 +207,7 @@
         
 
 
+        /* Tooltip z dodatkowymi instrukcjami i linkami pomocniczymi. */
         .tooltip-text a {
             color: #D09004;
             text-decoration: underline;
@@ -266,6 +273,7 @@
             opacity: 1;
         }
 
+/* Tooltip kosza informuje o czyszczeniu lokalnie zapisanych danych. */
 .trash-tooltip {
     position: fixed;
     bottom: 35px;
@@ -283,7 +291,7 @@
     box-shadow: var(--ShadowSoft);
 }
 
-        /* Stały pasek na dole */
+        /* Stały dolny pasek z ikonami nawigacyjnymi i akcją czyszczenia danych. */
         #bottomBar {
 
             height: 70px;
@@ -330,6 +338,7 @@
         /* Dodatkowy margines, żeby treść nie chowała się pod paskiem */
 
 
+        /* Nagłówek popupu jest przypięty na stałe i mieści branding rozszerzenia. */
         .top-section {
 
             height: 200px;
@@ -350,6 +359,7 @@
             box-sizing: border-box;
         }
 
+        /* Środkowa sekcja przewija zawartość zależną od aktualnej platformy i stanu eksportu. */
         .content-section {
             position: absolute;
             top: 200px;
@@ -380,12 +390,14 @@
 </head>
 
 <body>
+    <!-- Stały nagłówek z brandingiem rozszerzenia. -->
     <div class="top-section">
         <!-- <img id="logo" src="icon.png" alt="Logo" -->
         <img id="name" src="name_gray.png" alt="Name">
         <img id="graphic" src="graphic3.png" alt="Graphic">
     </div>
 
+    <!-- Główna zawartość popupu: instrukcje, ostrzeżenia i przyciski budowane zależnie od strony. -->
     <div class="content-section">
         <div id="instructionsBoxa" style="display: none;"></div>
         <div id="grayBoxa">Aby wyeksportować dane z platformy Finax, wejdź w szczegóły transakcji swojego rachunku. <b> Przegląd rachunków -> Szczegóły konta -> Przegląd transakcji </b></div>
@@ -397,8 +409,7 @@
         <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
         <div id="dateWarningBox"><b>Upewnij się, że wybrałeś odpowiedni zakres dat.</b></div>
         <button id="exportBtn">📥 Pobierz dane</button>
-        <!-- BYBIT: pytanie o zakres > 90 dni -->
-        <!-- BYBIT: pytanie o zakres > 90 dni (WYŁĄCZONE - nic nie będzie wyświetlane) -->
+        <!-- Zachowany, ale obecnie niewidoczny blok dawnego pytania o zakres historii Bybit. -->
         <div id="bybitQuestionInner" style="display:none;">
             <div style="font-size:12px; line-height:1.4; margin-bottom:8px; background:#F1F1F5; border-radius:6px; padding:8px 10px;">
                 <p><b>❓ Czy chcesz zaimportować dane z konta Funding z okresu dłuższego niż 90 dni?</b></p>
@@ -408,9 +419,7 @@
                 </div>
             </div>
         </div>
-
-
-        <!-- BYBIT: tryb rozszerzony (będzie domyślnie używany) -->
+    <!-- Instrukcje i przyciski dla rozbudowanego, wieloetapowego eksportu Bybit. -->
         <div id="bybitExtendedInfo" style="display:none; margin-top:8px;" class="bybit-box">
             <b>Jak pobrać dane z Bybit</b><br>
             <p>Zakładka <b>All Transactions</b> dla <b>konta Funding Account</b> pokazuje pełne dane tylko dla ostatnich <b>90 dni</b>, dlatego starsze operacje trzeba pobrać osobno z konkretnych sekcji (Deposit, Withdraw, P2P, One-Click Buy itd.) w zakładce History.
@@ -450,6 +459,7 @@
             <button id="bybitWithdrawFiatBtn" class="BUTTON">Pobierz dane z sekcji Withdraw Fiat</button>
         </div>
 
+        <!-- Starszy, prostszy wariant instrukcji Bybit pozostawiony jako alternatywny widok. -->
         <div id="bybitInfoBox" style="display:none;" class="bybit-box">
             <b>Import z Bybit przewiduje wykonanie 2 kroków:</b><br><br>
             <p><b>1️⃣ Funding Account</b> – przejdź do:
@@ -490,6 +500,7 @@
 
 
 
+    <!-- Dolny pasek zapewnia szybkie przejście do obsługiwanych serwisów oraz czyszczenie pamięci popupu. -->
     <div id="bottomBar">
         <div id="bottomIcons">
             <img id="myfundIcon" class="icon" src="icon.png" title="MyFund">
