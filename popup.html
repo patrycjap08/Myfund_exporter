@@ -83,6 +83,7 @@
         /* Wspólny styl dla boksów z instrukcjami, ostrzeżeniami i podpowiedziami. */
         #grayBoxa,
         #grayBoxd,
+        #grayBoxNN,
         #bybitInfoBox,
         #bybitExtendedInfo,
         #instructionsBoxa,
@@ -404,6 +405,7 @@
         <div id="grayBoxb">Aby wyeksportować dane z platformy mBank, upewnij się, że jesteś na właściwym profilu, a następnie przejdź do historii inwestycji: <b>Produkty -> Inwestycje -> Wszystkie -> Twój portfel inwestycyjny -> Historia</b></div>
         <div id="grayBoxc">Aby wyeksportować dane z platformy pekao24 przejdź do historii inwestycji, a następnie wybierz fundusze inwestycyjne</div>
         <div id="grayBoxd">Aby wyeksportować dane z analizy.pl, otwórz stronę, na której znajdują się <b>transakcje</b>.</div>
+        <div id="grayBoxNN">Aby wyeksportować dane z NN, zaloguj się do Moje NN i przejdź do historii OFE.</div>
         <div id="instructionsBoxb">Jeśli chcesz pobrać dane kupna i sprzedaży akcji, przejdź do zakładki <b>Kupno/Sprzedaż</b>.<br>Jeżeli chcesz pobrać dane operacji na koncie, przejdź do zakładki <b>Operacje</b>.</div>
         <div id="PPKWarningBox"><b>Zaloguj się i przejdź do widoku transakcji które chcesz zaimportować. Nie musisz rozwijać szczegułów transakcji, wtyczka zrobi to za Ciebie.</b></div>
         <div id="NobleWarningBox"><b>Zaloguj się i przejdź do widoku histori inwestycji.</b></div>
@@ -514,11 +516,12 @@
             <img id="nobleIcon" class="icon" src="noble_icon.png" title="Noble" style="display: none;">
             <img id="bybitIcon" class="icon" src="bybit_icon.png" title="Bybit" style="display: none;">
             <img id="analizyPlIcon" class="icon" src="analizy_icon.png" title="Analizy.pl" style="display: none;">
+            <img id="nnIcon" class="icon" src="nn_icon.png" title="NN OFE" style="display: none;">
 
             <div class="tooltip-container">
                 <img class="icon" src="info-icon.png" id="customInfoIcon">
                 <span class="tooltip-text">
-                    Wejdź na stronę jednej z obsługiwanych platform (np. Finax, mBank, BNP Paribas, Investors, Erste, Millenium) i otwórz wtyczkę.<br>
+                    Wejdź na stronę jednej z obsługiwanych platform (np. Finax, mBank, BNP Paribas, Investors, Erste, Millenium, NN) i otwórz wtyczkę.<br>
                     Na podstronie z operacjami kliknij „Pobierz dane”, aby zapisać je tymczasowo w pamięci przeglądarki.
                     Wtyczka przekieruje cię do odpowiedniej podstrony MyFund.<br>
                     Wybierz portfel, otwórz ponownie wtyczkę i kliknij: 

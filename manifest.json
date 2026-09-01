@@ -25,7 +25,9 @@
   "*://*.pekao.com/*",
   "*://*.epekaotfi.pl/*",
   "*://epekaotfi.pl/*",
-  "https://analizy.pl/*"
+  "https://analizy.pl/*",
+  "https://moje.nn.pl/*",
+  "https://logowanie.nn.pl/*"
 ],
     "background": {
       "service_worker": "background.js"
@@ -49,7 +51,9 @@
       "*://*.epekaotfi.pl/*",
       "*://epekaotfi.pl/*",
       "https://www.analizy.pl/*",
-      "https://analizy.pl/*"
+      "https://analizy.pl/*",
+      "https://moje.nn.pl/*",
+      "https://logowanie.nn.pl/*"
     ],
     "js": ["content.js"]
   }
@@ -68,4 +72,3 @@
       "128": "icon.png"
     }
   }
-  

@@ -16,7 +16,8 @@ const STORAGE_KEYS = {
         "noble_export.csv",
         "bybit_export.csv",
         "pekao_ikze_export.csv",
-        "analizy_pl_export.csv"
+        "analizy_pl_export.csv",
+        "nn_ofe_export.csv"
     ],
     EXCEPT_BYBIT: [
         "finax_transakcje.csv",
@@ -28,7 +29,8 @@ const STORAGE_KEYS = {
         "erste_export.csv",
         "noble_export.csv",
         "pekao_ikze_export.csv",
-        "analizy_pl_export.csv" 
+        "analizy_pl_export.csv",
+        "nn_ofe_export.csv"
     ]
 };
 
@@ -190,7 +192,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         url.includes("investment-funds/history") ||
         url.includes("investment-pension/history")
     );
-    const supportedPopupHost = /bybit|noble|erste|investors|milenium|paribas|mbank|finax|myfund|pekao24|epekaotfi|analizy\.pl/i;
+    const supportedPopupHost = /bybit|noble|erste|investors|milenium|paribas|mbank|finax|myfund|pekao24|epekaotfi|analizy\.pl|moje\.nn\.pl|logowanie\.nn\.pl/i;
+    const isNnPage = (url) => url.includes("moje.nn.pl") || url.includes("logowanie.nn.pl");
+    const isNnHistoryPage = (url) => url.includes("moje.nn.pl") && (
+        url.includes("/pension-fund/ofe/popup/history") ||
+        url.includes("moje.nn.pl:pension-fund:ofe:popup:history")
+    );
 
     // Pomocnik do wypełnienia formularza importu w MyFund przygotowanym plikiem CSV.
     const setImportFile = ({
@@ -529,6 +536,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    function insertTransactions_nnOfe(csvContent) {
+        setImportFile({
+            selectValue: 'NNOFE',
+            fileName: "nn_ofe_export.csv",
+            csvContent,
+            retryAttempts: 5
+        });
+    }
+
     // 🧩 Aktualizacja przycisków akcji w popupie na podstawie zapisanych danych
 
     // Dynamicznie buduje akcje popupu na podstawie aktualnej strony i plików zapisanych w pamięci rozszerzenia.
@@ -552,7 +568,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     "finax_operacje.csv": "Finax",
                     "finax_transakcje.csv": "Finax",
                     "pekao_ikze_export.csv": "Pekao",
-                    "analizy_pl_export.csv": "Analizy.pl"
+                    "analizy_pl_export.csv": "Analizy.pl",
+                    "nn_ofe_export.csv": "NN OFE"
                 };
                 return sourceNames[key] || "Dane";
             };
@@ -639,6 +656,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     excluded: "sourcePlugin=analizyPl",
                     label: "Przejdź do myfund, aby dodać zapisane transakcje",
                     url: "https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=analizyPl"
+                },
+                {
+                    key: "nn_ofe_export.csv",
+                    excluded: "sourcePlugin=NNOFE",
+                    label: "Przejdź do myfund, aby dodać zapisane transakcje",
+                    url: "https://myfund.pl/index.php?raport=ImportOperacji&_mrid=167&sourcePlugin=NNOFE"
                 }
             ];
 
@@ -708,6 +731,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                     importArgs: {
                         selectValue: 'analizyPl',
                         fileName: "analizy_pl_export.csv",
+                        retryAttempts: 5
+                    }
+                }, {
+                    key: "nn_ofe_export.csv",
+                    label: "Wklej pobrane transakcje",
+                    importArgs: {
+                        selectValue: 'NNOFE',
+                        fileName: "nn_ofe_export.csv",
                         retryAttempts: 5
                     }
                 });
@@ -901,7 +932,8 @@ if (
     !tabUrl.includes("mynsapp.noblesecurities") &&
     !tabUrl.includes("pekao24") &&
     !tabUrl.includes("epekaotfi.pl") &&
-    !tabUrl.includes("analizy.pl")
+    !tabUrl.includes("analizy.pl") &&
+    !isNnPage(tabUrl)
 ) {
     const box = document.getElementById("instructionsBoxa");
     box.innerHTML = `
@@ -914,6 +946,7 @@ if (
                 <li><a href="https://mynsapp.noblesecurities.pl/" target="_blank"><b>Noble Securities</b></a></li>
                 <li><a href="https://www.pekao24.pl" target="_blank"><b>Pekao24.pl</b></a></li>
                 <li><a href="https://analizy.pl" target="_blank"><b>Analizy.pl</b></a></li>
+                <li><a href="https://logowanie.nn.pl" target="_blank"><b>Moje NN</b></a></li>
             </ul>
 
             <p style="margin: 0 0 4px 0;">PPK z banków:</p>
@@ -1020,6 +1053,13 @@ if (
     document.getElementById("dateWarningBox").style.display = "block";
     exportBtn.style.display = "block";
 }
+    if (isNnPage(tabUrl) && !isNnHistoryPage(tabUrl)) {
+        document.getElementById("grayBoxNN").style.display = "block";
+        exportBtn.style.display = "none";
+    } else if (isNnHistoryPage(tabUrl)) {
+        document.getElementById("dateWarningBox").style.display = "block";
+        exportBtn.style.display = "block";
+    }
 
     if (tabUrl.includes("pekao24") && !tabUrl.includes("historia/fundusze-inwestycyjne/transakcje") && !tabUrl.includes("historia:fundusze-inwestycyjne:transakcje")) {
         document.getElementById("grayBoxc").style.display = "block";
@@ -1130,8 +1170,10 @@ if (
         } else if (tabUrl.includes("pekao24") || tabUrl.includes("epekaotfi")) {
             funcToRun = extractAndSaveTable_pekaoIkze;
         } else if (tabUrl.includes("analizy.pl")) {
-    funcToRun = extractAndSaveTable_analizyPl;
-}
+            funcToRun = extractAndSaveTable_analizyPl;
+        } else if (isNnHistoryPage(tabUrl)) {
+            funcToRun = extractAndSaveTable_nnOfe;
+        }
 
         if (funcToRun) {
             executeOnTab(tab.id, funcToRun, [STORAGE_KEYS.ALL]);
@@ -3259,6 +3301,126 @@ function extractAndSaveTable_analizyPl(STORAGE_KEYS_ALL) {
     });
 }
 
+function extractAndSaveTable_nnOfe(STORAGE_KEYS_ALL) {
+    const filename = "nn_ofe_export.csv";
+    const headers = ["data", "opis", "cena", "liczba jednostek", "opłata"];
+    const rows = [headers];
+
+    const normalizeSpace = (value) => String(value || "")
+        .replace(/[\u00A0\u202F\u2007\u2009\u200A\u200B\uFEFF]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const normalizeLabel = (value) => normalizeSpace(value)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    const stripLabel = (value, label) => {
+        const text = normalizeSpace(value);
+        return normalizeLabel(text).startsWith(normalizeLabel(label))
+            ? text.slice(label.length).trim()
+            : text;
+    };
+    const textFromCell = (cell, label) => {
+        if (!cell) return "";
+        const mobileValue = Array.from(cell.querySelectorAll("span"))
+            .find((span) => String(span.className || "").includes("MobileItemWithLabel"));
+        return stripLabel(normalizeSpace(mobileValue?.textContent || cell.textContent), label);
+    };
+    const cleanNumber = (value) => {
+        let text = normalizeSpace(value);
+        text = text.replace(/\b[A-Z]{3}\b/g, "").replace(/\s+/g, "");
+        text = text.replace(/[^\d,\.\-]/g, "");
+        if (text.includes(",") && text.includes(".")) text = text.replace(/\./g, "");
+        text = text.replace(",", ".");
+        text = text.replace(/(?!^)-/g, "");
+        return text;
+    };
+    const findHeaderIndex = (headers, label) =>
+        headers.findIndex((header) => normalizeLabel(header).includes(normalizeLabel(label)));
+
+    const tableCandidates = Array.from(document.querySelectorAll("table"))
+        .map((table) => {
+            const headerCells = Array.from(
+                table.querySelectorAll("thead tr:first-child th, thead tr:first-child td")
+            );
+            const headersFromTable = headerCells.map((cell) => normalizeSpace(cell.textContent));
+            const indexes = {
+                data: findHeaderIndex(headersFromTable, "Data"),
+                opis: findHeaderIndex(headersFromTable, "Opis"),
+                cena: findHeaderIndex(headersFromTable, "Cena jednostki"),
+                jednostki: findHeaderIndex(headersFromTable, "Liczba jednostek"),
+                oplata: findHeaderIndex(headersFromTable, "Opłata")
+            };
+            const bodyRows = Array.from(table.querySelectorAll("tbody tr"));
+            return {
+                table,
+                indexes,
+                bodyRows
+            };
+        })
+        .filter(({ indexes, bodyRows }) =>
+            bodyRows.length > 0 &&
+            indexes.data >= 0 &&
+            indexes.opis >= 0 &&
+            indexes.cena >= 0 &&
+            indexes.jednostki >= 0 &&
+            indexes.oplata >= 0
+        )
+        .sort((a, b) => b.bodyRows.length - a.bodyRows.length);
+
+    if (!tableCandidates.length) {
+        chrome.runtime.sendMessage({
+            action: "dataSaveEmpty",
+            message: "Nie znaleziono tabeli historii NN OFE."
+        });
+        return;
+    }
+
+    const { indexes, bodyRows } = tableCandidates[0];
+
+    bodyRows.forEach((tr) => {
+        const cells = Array.from(tr.querySelectorAll(":scope > td, :scope > th"));
+        if (!cells.length) return;
+
+        const data = textFromCell(cells[indexes.data], "Data");
+        const opis = textFromCell(cells[indexes.opis], "Opis");
+        const cena = cleanNumber(textFromCell(cells[indexes.cena], "Cena jednostki"));
+        const jednostki = cleanNumber(textFromCell(cells[indexes.jednostki], "Liczba jednostek"));
+        const oplata = cleanNumber(textFromCell(cells[indexes.oplata], "Opłata"));
+
+        if (!data && !opis) return;
+
+        rows.push([
+            data,
+            opis,
+            cena,
+            jednostki,
+            oplata
+        ]);
+    });
+
+    if (rows.length <= 1) {
+        chrome.runtime.sendMessage({
+            action: "dataSaveEmpty",
+            message: "Brak danych NN OFE do pobrania."
+        });
+        return;
+    }
+
+    const csvContent = rows.map((row) => row.join(";")).join("\n");
+
+    chrome.storage.local.remove(STORAGE_KEYS_ALL, () => {
+        chrome.storage.local.set({ [filename]: csvContent }, () => {
+            if (!chrome.runtime.lastError) {
+                chrome.runtime.sendMessage({ action: "dataSaved", filename });
+                chrome.runtime.sendMessage({ action: "checkStorage" });
+            } else {
+                chrome.runtime.sendMessage({ action: "dataSaveFailed" });
+            }
+        });
+    });
+}
+
 // Szczegółowe ekstraktory Bybit rozbijają historię Funding na osobne sekcje i dopisują je do jednego pliku wynikowego.
 function bybit_extract_depositSpot() {
     const BYBIT_KEY = "bybit_export.csv";
@@ -4502,6 +4664,7 @@ function updateVisibleIcon() {
     const nobleIcon = document.getElementById("nobleIcon");
     const bybitIcon = document.getElementById("bybitIcon");
     const analizyPlIcon = document.getElementById("analizyPlIcon");
+    const nnIcon = document.getElementById("nnIcon");
 
     // Domyślnie ukryj obie
     finaxIcon.style.display = "none";
@@ -4514,6 +4677,7 @@ function updateVisibleIcon() {
     nobleIcon.style.display = "none";
     bybitIcon.style.display = "none";
     analizyPlIcon.style.display = "none";
+    nnIcon.style.display = "none";
 
     // Sprawdź aktywną zakładkę
     chrome.tabs.query({
@@ -4550,6 +4714,9 @@ function updateVisibleIcon() {
         if (url.includes("analizy.pl")) {
           analizyPlIcon.style.display = "inline-block";
         } 
+        if (url.includes("moje.nn.pl") || url.includes("logowanie.nn.pl")) {
+            nnIcon.style.display = "inline-block";
+        }
         if (url.includes("epekaotfi")) {
           pekaoIcon.style.display = "inline-block";
         }
@@ -4575,6 +4742,7 @@ document.addEventListener("DOMContentLoaded", updateVisibleIcon);
     ["nobleIcon", "https://mynsapp.noblesecurities.pl/"],
     ["pekaoIcon", "https://www.pekao24.pl"],
     ["analizyPlIcon", "https://www.analizy.pl"],
+    ["nnIcon", "https://moje.nn.pl/"],
     ["bybitIcon", "https://www.bybit.com"]
 ].forEach(([id, url]) => {
     document.getElementById(id).addEventListener("click", () => openInNewTab(url));
@@ -4599,4 +4767,3 @@ function checkStoredData() {
 }
 
 checkStoredData();
-

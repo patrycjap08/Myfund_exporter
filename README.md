@@ -9,6 +9,7 @@ Opis
   Millenium TFI
   Investors
   Santander PPK
+  NN OFE
 
  
 Instalacja do testów
@@ -25,6 +26,8 @@ Obsługiwane strony
   millenniumtfi.sti24.pl/transaction/history
   online24.investors.pl/transaction/history
   online.santander-ppk.pl/transaction/history
+  logowanie.nn.pl
+  moje.nn.pl/pension-fund/ofe/popup/history
   myfund.pl
 
 Struktura plików
